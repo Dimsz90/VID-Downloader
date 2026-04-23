@@ -2,42 +2,82 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VidGF Unlocker Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidGF Secure Player</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 50px; }
-        input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
-        button { padding: 10px 20px; background: #fe6081; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        #result { margin-top: 20px; word-break: break-all; color: #00ff00; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f0f; color: white; text-align: center; padding: 20px; margin: 0; }
+        .container { max-width: 800px; margin: auto; }
+        .input-group { margin-bottom: 30px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        input { padding: 12px; width: 60%; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: white; outline: none; }
+        button { padding: 12px 24px; background: #fe6081; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #e04566; }
+        
+        /* Gaya Player Wrapper */
+        #player-container { margin-top: 20px; display: none; }
+        .video-box { position: relative; padding-bottom: 56.25%; height: 0; background: #000; border-radius: 10px; overflow: hidden; border: 2px solid #333; }
+        iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        
+        #status { margin-top: 15px; color: #aaa; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h2>VidGF Direct Link Generator</h2>
-    <input type="text" id="videoId" placeholder="Masukkan ID atau Link Video">
-    <button onclick="getLink()">Ambil Link</button>
-    <div id="result"></div>
 
-    <script>
-        async function getLink() {
-            const input = document.getElementById('videoId').value;
-            // Ekstrak ID jika user memasukkan full URL
-            const videoId = input.includes('/') ? input.split('/').pop() : input;
-            const resDiv = document.getElementById('result');
+<div class="container">
+    <h2>VidGF Secure Player</h2>
+    
+    <div class="input-group">
+        <input type="text" id="videoId" placeholder="Masukkan ID atau Link Video">
+        <button onclick="unlockVideo()">Unlock & Play</button>
+        <div id="status"></div>
+    </div>
+
+    <div id="player-container">
+        <div class="video-box" id="player-wrapper">
+            </div>
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+            Mode Secure: Ads & Pop-ups Blocked
+        </p>
+    </div>
+</div>
+
+<script>
+    async function unlockVideo() {
+        const input = document.getElementById('videoId').value.trim();
+        if (!input) return;
+
+        const videoId = input.includes('/') ? input.split('/').pop() : input;
+        const status = document.getElementById('status');
+        const container = document.getElementById('player-container');
+        const wrapper = document.getElementById('player-wrapper');
+
+        status.innerText = "Processing security layer...";
+        container.style.display = "none";
+
+        try {
+            // Kita tetap panggil API get-video kamu
+            const response = await fetch(`/api/get-video?id=${videoId}`);
+            const data = await response.json();
             
-            resDiv.innerText = "Loading...";
-            
-            try {
-                const response = await fetch(`/api/get-video?id=${videoId}`);
-                const data = await response.json();
+            if(data.status === "success") {
+                status.innerText = "Video Unlocked!";
+                container.style.display = "block";
                 
-                if(data.status === "success") {
-                    resDiv.innerHTML = `Link Ditemukan:<br><a href="${data.link}" target="_blank" style="color:cyan">${data.link}</a>`;
-                } else {
-                    resDiv.innerText = "Error: " + data.message;
-                }
-            } catch (e) {
-                resDiv.innerText = "Gagal menghubungi API.";
+                // Gunakan Sandbox untuk keamanan maksimal
+                wrapper.innerHTML = `
+                    <iframe 
+                        src="${data.link}" 
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allowfullscreen="true"
+                        referrerpolicy="no-referrer">
+                    </iframe>`;
+            } else {
+                status.innerText = "Error: " + data.message;
             }
+        } catch (e) {
+            status.innerText = "Gagal menghubungi API backend.";
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
