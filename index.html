@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VidGF Unlocker Pro</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 50px; }
+        input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; background: #fe6081; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #result { margin-top: 20px; word-break: break-all; color: #00ff00; }
+    </style>
+</head>
+<body>
+    <h2>VidGF Direct Link Generator</h2>
+    <input type="text" id="videoId" placeholder="Masukkan ID atau Link Video">
+    <button onclick="getLink()">Ambil Link</button>
+    <div id="result"></div>
+
+    <script>
+        async function getLink() {
+            const input = document.getElementById('videoId').value;
+            // Ekstrak ID jika user memasukkan full URL
+            const videoId = input.includes('/') ? input.split('/').pop() : input;
+            const resDiv = document.getElementById('result');
+            
+            resDiv.innerText = "Loading...";
+            
+            try {
+                const response = await fetch(`/api/get-video?id=${videoId}`);
+                const data = await response.json();
+                
+                if(data.status === "success") {
+                    resDiv.innerHTML = `Link Ditemukan:<br><a href="${data.link}" target="_blank" style="color:cyan">${data.link}</a>`;
+                } else {
+                    resDiv.innerText = "Error: " + data.message;
+                }
+            } catch (e) {
+                resDiv.innerText = "Gagal menghubungi API.";
+            }
+        }
+    </script>
+</body>
+</html>
