@@ -1,6 +1,4 @@
 from http.server import BaseHTTPRequestHandler
-import requests
-import re
 import json
 from urllib.parse import urlparse, parse_qs
 
@@ -13,33 +11,24 @@ class handler(BaseHTTPRequestHandler):
 
         if not video_id:
             self.send_response(400)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(b"Missing Video ID")
+            self.wfile.write(json.dumps({"status": "error", "message": "Missing Video ID"}).encode())
             return
 
+        # Kita kembalikan link Embed resmi agar bisa diputar di Iframe
+        # Link ini sudah kamu uji sebelumnya dan bisa dibuka
         embed_url = f"https://vidgf.com/embed.php?bucket=temporary&id={video_id}"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://vidgf.com/"
+        
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*') # Penting untuk Vercel
+        self.end_headers()
+
+        # Kita kirim kembali ke frontend
+        result = {
+            "status": "success", 
+            "link": embed_url
         }
-
-        try:
-            resp = requests.get(embed_url, headers=headers, timeout=10)
-            match = re.search(r'<source\s+src="([^"]+)"', resp.text)
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*') # Allow CORS
-            self.end_headers()
-
-            if match:
-                result = {"status": "success", "link": match.group(1)}
-            else:
-                result = {"status": "error", "message": "Link not found"}
-            
-            self.wfile.write(json.dumps(result).encode())
-
-        except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(str(e).encode())
+        
+        self.wfile.write(json.dumps(result).encode())
