@@ -1,43 +1,767 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <title>VidGF Unlocker Pro</title>
-    <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 50px; }
-        input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
-        button { padding: 10px 20px; background: #fe6081; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        #result { margin-top: 20px; word-break: break-all; color: #00ff00; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>StreamVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080808;
+    --surface: #111;
+    --surface2: #181818;
+    --border: #1e1e1e;
+    --border2: #2a2a2a;
+    --text: #efefef;
+    --text2: #888;
+    --text3: #444;
+    --accent: #ff3c5f;
+    --accent2: #ff6b85;
+    --mono: 'Space Mono', monospace;
+    --display: 'Bebas Neue', sans-serif;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* ── Header ── */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(8,8,8,0.94);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem; height: 58px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 26px; letter-spacing: 2px;
+  }
+  .logo span { color: var(--accent); }
+
+  /* ── Main ── */
+  main {
+    max-width: 880px; margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+    position: relative; z-index: 1;
+  }
+
+  /* ── Search ── */
+  .search-title {
+    font-family: var(--display);
+    font-size: 54px; letter-spacing: 1px; line-height: 1;
+    margin-bottom: 6px;
+  }
+  .search-title span { color: var(--accent); }
+
+  .search-sub {
+    font-size: 12px; color: var(--text3);
+    font-family: var(--mono); margin-bottom: 22px;
+  }
+
+  .search-row {
+    display: flex; gap: 0;
+    border: 1px solid var(--border2);
+    border-radius: 10px; overflow: hidden;
+    background: var(--surface);
+    transition: border-color 0.2s;
+    margin-bottom: 10px;
+  }
+  .search-row:focus-within { border-color: var(--accent); }
+
+  #urlInput {
+    flex: 1; background: transparent; border: none; outline: none;
+    padding: 16px 20px; font-size: 14px;
+    font-family: var(--mono); color: var(--text); min-width: 0;
+  }
+  #urlInput::placeholder { color: var(--text3); }
+
+  .btn-go {
+    background: var(--accent); color: #fff; border: none;
+    padding: 16px 28px; font-family: var(--display);
+    font-size: 18px; letter-spacing: 1px;
+    cursor: pointer; transition: background 0.15s;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .btn-go:hover { background: var(--accent2); }
+  .btn-go:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* SPA toggle */
+  .spa-toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text3);
+    font-family: var(--mono); cursor: pointer;
+    width: fit-content;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    transition: border-color 0.2s;
+    user-select: none;
+  }
+  .spa-toggle:hover { border-color: var(--border2); }
+  .spa-toggle.on { border-color: var(--accent); color: var(--accent); }
+  .spa-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid currentColor; flex-shrink: 0;
+  }
+  .spa-toggle.on .spa-dot { background: var(--accent); }
+
+  /* Status */
+  .status {
+    display: none; align-items: center; gap: 10px;
+    margin-top: 14px; font-size: 12px;
+    font-family: var(--mono); color: var(--text2);
+  }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box {
+    display: none;
+    background: #1a0509; border: 1px solid #3a1020;
+    color: #ff8090; border-radius: 8px;
+    padding: 12px 16px; font-size: 13px;
+    font-family: var(--mono); margin-top: 14px;
+  }
+
+  /* ══════════════════════════════
+     CINEMA MODE (vidgf)
+  ══════════════════════════════ */
+  #cinema-mode {
+    display: none;
+    position: fixed; inset: 0;
+    background: #000; z-index: 200;
+  }
+
+  .cinema-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px; z-index: 10;
+    transition: opacity 0.4s;
+  }
+  .cinema-bar.faded { opacity: 0; pointer-events: none; }
+
+  .cinema-title {
+    font-family: var(--mono); font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 55vw;
+  }
+
+  .cinema-btns { display: flex; gap: 8px; }
+
+  .cbtn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff; border-radius: 6px;
+    padding: 6px 12px; font-size: 11px;
+    font-family: var(--mono); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cbtn:hover { background: rgba(255,255,255,0.2); }
+
+  #cinemaVideo {
+    width: 100vw; height: 100vh;
+    object-fit: contain; background: #000;
+    display: block;
+  }
+
+  .cinema-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px; background: #000; z-index: 5;
+  }
+  .cinema-overlay.hidden { display: none; }
+
+  .big-spinner {
+    width: 44px; height: 44px;
+    border: 3px solid #222;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .cinema-overlay p {
+    font-family: var(--mono); font-size: 11px; color: var(--text3);
+  }
+
+  .cinema-overlay h3 {
+    font-family: var(--display); font-size: 34px;
+    color: var(--accent); letter-spacing: 2px;
+  }
+
+  /* ══════════════════════════════
+     LIST MODE (yt-dlp)
+  ══════════════════════════════ */
+  #list-mode { display: none; }
+
+  .list-header {
+    display: flex; align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 8px;
+  }
+  .list-h { font-family: var(--display); font-size: 34px; letter-spacing: 1px; }
+  .list-ct { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+  .video-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .video-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex; gap: 14px; padding: 14px;
+    transition: border-color 0.2s, background 0.2s;
+    animation: fadeUp 0.3s ease both;
+  }
+  .video-item:hover { border-color: var(--border2); background: var(--surface2); }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(10px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .item-thumb {
+    width: 130px; height: 75px; border-radius: 7px;
+    background: var(--surface2); flex-shrink: 0;
+    overflow: hidden; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .item-thumb img { width:100%; height:100%; object-fit:cover; }
+  .thumb-icon { font-size: 22px; opacity: 0.2; }
+  .item-dur {
+    position: absolute; bottom: 4px; right: 5px;
+    background: rgba(0,0,0,0.75);
+    font-size: 10px; font-family: var(--mono); color: #fff;
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  .item-info { flex: 1; min-width: 0; }
+  .item-title {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+  .item-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+
+  .tag {
+    font-size: 10px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px; letter-spacing: 0.3px;
+  }
+  .tag-p { background:#1a1030; color:#a78bfa; border:1px solid #2a1a50; }
+  .tag-s { background:#0e1e10; color:#6ee7a0; border:1px solid #1a3a20; }
+  .tag-n { background:#1e1800; color:#fcd34d; border:1px solid #3a3000; }
+
+  .item-url {
+    font-family: var(--mono); font-size: 10px; color: var(--text3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 10px;
+  }
+  .item-actions { display: flex; gap: 8px; }
+
+  .btn-dl {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 6px; padding: 6px 14px;
+    font-size: 11px; font-weight: 600;
+    font-family: var(--body); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-dl:hover { background: var(--accent2); }
+  .btn-dl:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-fmt {
+    background: transparent; border: 1px solid var(--border2);
+    color: var(--text2); border-radius: 6px;
+    padding: 6px 12px; font-size: 11px;
+    font-family: var(--body); cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-fmt:hover { border-color: var(--accent); color: var(--accent); }
+
+  .fmt-drop { display: none; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .fmt-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .fmt-pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 6px;
+    padding: 4px 10px; font-size: 11px;
+    font-family: var(--mono); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .fmt-pill:hover  { border-color: var(--accent); color: var(--accent); }
+  .fmt-pill.active { border-color: var(--accent); color: #000; background: var(--accent); }
+
+  .dl-prog { display: none; margin-top: 10px; }
+  .prog-row {
+    display: flex; justify-content: space-between;
+    font-size: 11px; font-family: var(--mono);
+    color: var(--text2); margin-bottom: 4px;
+  }
+  .prog-track { background: var(--border); height: 3px; border-radius: 3px; overflow: hidden; }
+  .prog-bar { height: 3px; background: var(--accent); width: 0%; border-radius: 3px; transition: width 0.4s; }
+
+  .empty {
+    display: none; text-align: center; padding: 4rem 2rem; color: var(--text3);
+  }
+  .empty h3 { font-family: var(--display); font-size: 28px; color: var(--text2); margin-bottom: 8px; }
+  .empty p  { font-size: 12px; font-family: var(--mono); line-height: 1.8; }
+
+  footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    text-align: center; font-size: 10px;
+    font-family: var(--mono); color: var(--text3);
+    padding: 10px; background: rgba(8,8,8,0.92);
+    border-top: 1px solid var(--border); z-index: 10;
+  }
+
+  @media (max-width: 600px) {
+    .search-title { font-size: 38px; }
+    .item-thumb { width: 90px; height: 55px; }
+    .btn-go { padding: 16px 18px; font-size: 16px; }
+  }
+</style>
 </head>
 <body>
-    <h2>VidGF Direct Link Generator</h2>
-    <input type="text" id="videoId" placeholder="Masukkan ID atau Link Video">
-    <button onclick="getLink()">Ambil Link</button>
-    <div id="result"></div>
 
-    <script>
-        async function getLink() {
-            const input = document.getElementById('videoId').value;
-            // Ekstrak ID jika user memasukkan full URL
-            const videoId = input.includes('/') ? input.split('/').pop() : input;
-            const resDiv = document.getElementById('result');
-            
-            resDiv.innerText = "Loading...";
-            
-            try {
-                const response = await fetch(`/api/get-video?id=${videoId}`);
-                const data = await response.json();
-                
-                if(data.status === "success") {
-                    resDiv.innerHTML = `Link Ditemukan:<br><a href="${data.link}" target="_blank" style="color:cyan">${data.link}</a>`;
-                } else {
-                    resDiv.innerText = "Error: " + data.message;
-                }
-            } catch (e) {
-                resDiv.innerText = "Gagal menghubungi API.";
-            }
-        }
-    </script>
+<header>
+  <div class="logo">STREAM<span>VAULT</span></div>
+  <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">v2.0</div>
+</header>
+
+<main>
+  <div style="margin-bottom:2.5rem">
+    <div class="search-title">SCAN &amp;<br><span>STREAM</span></div>
+    <div class="search-sub">// paste URL halaman atau link video langsung</div>
+
+    <div class="search-row">
+      <input id="urlInput" type="url" placeholder="https://..." autocomplete="off" spellcheck="false">
+      <button class="btn-go" id="btnGo" onclick="handleSubmit()">SCAN</button>
+    </div>
+
+    <div class="spa-toggle" id="spaToggle" onclick="toggleSpa()" title="Gunakan headless browser untuk SPA (React/Vue)">
+      <div class="spa-dot"></div>
+      <span id="spaLabel">Mode SPA (off)</span>
+    </div>
+
+    <div class="status" id="status"><div class="spinner"></div><span id="statusText"></span></div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <!-- List mode -->
+  <div id="list-mode">
+    <div class="list-header">
+      <div class="list-h">HASIL SCAN</div>
+      <div class="list-ct" id="listCount"></div>
+    </div>
+    <div class="video-list" id="videoList"></div>
+    <div class="empty" id="emptyState">
+      <h3>TIDAK ADA VIDEO</h3>
+      <p>Halaman ini tidak mengandung video yang terdeteksi.<br>Coba aktifkan Mode SPA jika halaman pakai React / Vue / Next.js</p>
+    </div>
+  </div>
+</main>
+
+<!-- Cinema mode (vidgf) -->
+<div id="cinema-mode">
+
+  <!-- Loading overlay -->
+  <div class="cinema-overlay" id="cinemaLoading">
+    <div class="big-spinner"></div>
+    <p id="cinemaLoadText">Mengekstrak link video...</p>
+  </div>
+
+  <!-- Error overlay -->
+  <div class="cinema-overlay hidden" id="cinemaError">
+    <h3>GAGAL</h3>
+    <p id="cinemaErrText">Tidak bisa mengambil link video.</p>
+    <button class="cbtn" style="margin-top:8px" onclick="closeCinema()">← KEMBALI</button>
+  </div>
+
+  <!-- Top bar -->
+  <div class="cinema-bar" id="cinemaBar">
+    <div class="cinema-title" id="cinemaTitle">vidgf player</div>
+    <div class="cinema-btns">
+      <button class="cbtn" id="btnCopy" onclick="copyUrl()">COPY URL</button>
+      <button class="cbtn" onclick="dlCinema()">↓ DOWNLOAD</button>
+      <button class="cbtn" onclick="closeCinema()">✕ TUTUP</button>
+    </div>
+  </div>
+
+  <video id="cinemaVideo" controls autoplay playsinline></video>
+</div>
+
+<footer>StreamVault · yt-dlp + vidgf extractor · localhost:5000</footer>
+
+<script>
+const API = "";
+let allVideos  = [];
+let selFormats = {};
+let cinemaUrl  = "";
+let spaOn      = false;
+let hideTimer  = null;
+
+// ── SPA toggle ────────────────────────────────────────────────────────────────
+function toggleSpa() {
+  spaOn = !spaOn;
+  const el = document.getElementById("spaToggle");
+  el.classList.toggle("on", spaOn);
+  document.getElementById("spaLabel").textContent = spaOn ? "Mode SPA (on)" : "Mode SPA (off)";
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+async function handleSubmit() {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) return;
+  resetUI();
+  try {
+    const domain = new URL(url).hostname.toLowerCase();
+    if (domain.includes("vidgf.com")) {
+      await modeVidgf(url);
+    } else {
+      await modeScan(url);
+    }
+  } catch(e) {
+    showError("URL tidak valid: " + e.message);
+  }
+}
+
+document.getElementById("urlInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") handleSubmit();
+});
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function resetUI() {
+  document.getElementById("list-mode").style.display   = "none";
+  document.getElementById("cinema-mode").style.display = "none";
+  document.getElementById("errorBox").style.display    = "none";
+  document.getElementById("emptyState").style.display  = "none";
+  document.getElementById("videoList").innerHTML = "";
+  allVideos = []; selFormats = {};
+}
+
+function setStatus(show, text="") {
+  const s = document.getElementById("status");
+  s.style.display = show ? "flex" : "none";
+  document.getElementById("statusText").textContent = text;
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorBox");
+  el.textContent = "⚠ " + msg;
+  el.style.display = "block";
+}
+
+function setBtnLoading(on) {
+  const b = document.getElementById("btnGo");
+  b.disabled = on;
+  b.textContent = on ? "..." : "SCAN";
+}
+
+function esc(s) {
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CINEMA MODE — vidgf.com
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function modeVidgf(url) {
+  // Ekstrak video ID
+  let videoId;
+  try {
+    const u = new URL(url);
+    videoId = u.searchParams.get("id")
+      || u.pathname.replace(/^\/+/,"").split("/").filter(Boolean).pop();
+  } catch(e) { showError("URL tidak valid"); return; }
+
+  if (!videoId) { showError("Tidak bisa ekstrak video ID."); return; }
+
+  // Tampilkan cinema + loading
+  const cinema = document.getElementById("cinema-mode");
+  cinema.style.display = "block";
+  document.getElementById("cinemaLoading").classList.remove("hidden");
+  document.getElementById("cinemaError").classList.add("hidden");
+  document.getElementById("cinemaVideo").style.display = "none";
+  document.getElementById("cinemaLoadText").textContent = `Fetching ID: ${videoId}...`;
+
+  setStatus(true, `Mengekstrak vidgf/${videoId}`);
+  setBtnLoading(true);
+
+  try {
+    const res  = await fetch(`${API}/api/get-video?id=${encodeURIComponent(videoId)}`);
+    const data = await res.json();
+
+    if (data.status !== "success" || !data.link) {
+      throw new Error(data.message || "Ekstraksi gagal");
+    }
+
+    cinemaUrl = data.link;
+    document.getElementById("cinemaTitle").textContent = `vidgf / ${videoId}`;
+
+    const vid = document.getElementById("cinemaVideo");
+    vid.src = data.link;
+    vid.style.display = "block";
+    document.getElementById("cinemaLoading").classList.add("hidden");
+    startBarTimer();
+
+  } catch(e) {
+    document.getElementById("cinemaLoading").classList.add("hidden");
+    document.getElementById("cinemaError").classList.remove("hidden");
+    document.getElementById("cinemaErrText").textContent = e.message;
+  } finally {
+    setStatus(false);
+    setBtnLoading(false);
+  }
+}
+
+// Auto-hide top bar
+function startBarTimer() {
+  const bar = document.getElementById("cinemaBar");
+  bar.classList.remove("faded");
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => bar.classList.add("faded"), 3000);
+}
+
+document.addEventListener("mousemove", () => {
+  if (document.getElementById("cinema-mode").style.display !== "none") startBarTimer();
+});
+
+document.addEventListener("touchstart", () => {
+  if (document.getElementById("cinema-mode").style.display !== "none") startBarTimer();
+});
+
+function closeCinema() {
+  document.getElementById("cinema-mode").style.display = "none";
+  const v = document.getElementById("cinemaVideo");
+  v.pause(); v.src = "";
+  cinemaUrl = "";
+}
+
+function copyUrl() {
+  if (!cinemaUrl) return;
+  navigator.clipboard.writeText(cinemaUrl).then(() => {
+    const b = document.getElementById("btnCopy");
+    b.textContent = "✓ COPIED";
+    setTimeout(() => b.textContent = "COPY URL", 2000);
+  });
+}
+
+function dlCinema() {
+  if (!cinemaUrl) return;
+  const a = document.createElement("a");
+  a.href = cinemaUrl;
+  a.download = cinemaUrl.split("/").pop().split("?")[0] || "video.mp4";
+  a.click();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LIST MODE — yt-dlp scan
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function modeScan(url) {
+  setStatus(true, spaOn ? "Membuka headless browser..." : "Scanning halaman...");
+  setBtnLoading(true);
+
+  try {
+    const res  = await fetch(`${API}/api/scan`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ url, spa: spaOn })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Scan gagal");
+
+    allVideos = data.videos || [];
+    document.getElementById("list-mode").style.display = "block";
+
+    if (allVideos.length === 0) {
+      document.getElementById("emptyState").style.display = "block";
+    } else {
+      renderList(allVideos);
+    }
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    setStatus(false);
+    setBtnLoading(false);
+  }
+}
+
+function tagCls(src) {
+  if (!src) return "tag-p";
+  if (src.includes("network")) return "tag-n";
+  if (src.includes("yt-dlp"))  return "tag-s";
+  return "tag-p";
+}
+
+function renderList(videos) {
+  const list = document.getElementById("videoList");
+  list.innerHTML = "";
+  document.getElementById("listCount").textContent = `${videos.length} video ditemukan`;
+
+  videos.forEach((v, i) => {
+    const el = document.createElement("div");
+    el.className = "video-item";
+    el.id = `item-${i}`;
+    el.style.animationDelay = `${i * 35}ms`;
+
+    const thumb = v.thumb
+      ? `<img src="${esc(v.thumb)}" alt="" onerror="this.style.display='none'">`
+      : `<span class="thumb-icon">▶</span>`;
+
+    const dur = v.duration ? `<div class="item-dur">${esc(v.duration)}</div>` : "";
+
+    el.innerHTML = `
+      <div class="item-thumb">${thumb}${dur}</div>
+      <div class="item-info">
+        <div class="item-title" title="${esc(v.title)}">${esc(v.title || "Video")}</div>
+        <div class="item-meta">
+          <span class="tag tag-p">${esc(v.platform)}</span>
+          <span class="tag ${tagCls(v.source)}">${esc(v.source)}</span>
+        </div>
+        <div class="item-url">${esc(v.url)}</div>
+        <div class="item-actions">
+          <button class="btn-fmt" onclick="loadFormats(${i},event)">Format ▾</button>
+          <button class="btn-dl" id="dlbtn-${i}" onclick="dlVideo(${i})">↓ Download</button>
+        </div>
+        <div class="fmt-drop" id="fmt-${i}">
+          <div class="fmt-grid" id="fmtgrid-${i}"></div>
+        </div>
+        <div class="dl-prog" id="prog-${i}">
+          <div class="prog-row">
+            <span id="progLbl-${i}">Mengunduh...</span>
+            <span id="progPct-${i}">0%</span>
+          </div>
+          <div class="prog-track"><div class="prog-bar" id="progBar-${i}"></div></div>
+        </div>
+      </div>`;
+    list.appendChild(el);
+  });
+}
+
+// ── Format picker ─────────────────────────────────────────────────────────────
+async function loadFormats(idx, evt) {
+  evt && evt.stopPropagation();
+  const drop = document.getElementById(`fmt-${idx}`);
+  const grid = document.getElementById(`fmtgrid-${idx}`);
+  if (drop.style.display === "block") { drop.style.display = "none"; return; }
+  drop.style.display = "block";
+  grid.innerHTML = `<span style="font-size:11px;color:var(--text3)">Memuat...</span>`;
+
+  const v = allVideos[idx];
+  try {
+    const res  = await fetch(`${API}/api/formats`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ url: v.url })
+    });
+    const data = await res.json();
+    grid.innerHTML = "";
+
+    // Auto best
+    const auto = mkFmtBtn("Best (auto)", true);
+    auto.onclick = () => selFmt(idx, "bestvideo+bestaudio/best", auto, grid);
+    grid.appendChild(auto);
+    selFormats[idx] = "bestvideo+bestaudio/best";
+
+    (data.formats || []).forEach(f => {
+      const b = mkFmtBtn(`${f.label} · ${f.size}`, false);
+      b.onclick = () => selFmt(idx, f.format_id, b, grid);
+      grid.appendChild(b);
+    });
+  } catch(e) {
+    grid.innerHTML = `<span style="font-size:11px;color:var(--accent)">Gagal memuat</span>`;
+  }
+}
+
+function mkFmtBtn(label, active) {
+  const b = document.createElement("button");
+  b.className = "fmt-pill" + (active ? " active" : "");
+  b.textContent = label;
+  return b;
+}
+
+function selFmt(idx, fid, btn, grid) {
+  selFormats[idx] = fid;
+  grid.querySelectorAll(".fmt-pill").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+// ── Download ──────────────────────────────────────────────────────────────────
+async function dlVideo(idx) {
+  const v   = allVideos[idx];
+  const fid = selFormats[idx] || "bestvideo+bestaudio/best";
+  const btn = document.getElementById(`dlbtn-${idx}`);
+  const prog = document.getElementById(`prog-${idx}`);
+  const bar  = document.getElementById(`progBar-${idx}`);
+
+  btn.disabled = true; btn.textContent = "...";
+  prog.style.display = "block";
+
+  let pct = 0;
+  const t = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 4, 88);
+    bar.style.width = pct.toFixed(0) + "%";
+    document.getElementById(`progPct-${idx}`).textContent = pct.toFixed(0) + "%";
+  }, 400);
+
+  try {
+    const res = await fetch(`${API}/api/download`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ url: v.url, format_id: fid, title: v.title || "video" })
+    });
+
+    if (!res.ok) throw new Error((await res.json()).error || "Gagal");
+
+    clearInterval(t);
+    bar.style.width = "100%";
+    document.getElementById(`progPct-${idx}`).textContent = "100%";
+    document.getElementById(`progLbl-${idx}`).textContent = "✓ Selesai";
+
+    const blob = await res.blob();
+    const cd   = res.headers.get("Content-Disposition") || "";
+    const nm   = (cd.match(/filename="?(.+?)"?(?:;|$)/) || [])[1] || `video_${idx}.mp4`;
+    const a    = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = nm; a.click();
+    URL.revokeObjectURL(a.href);
+
+  } catch(e) {
+    clearInterval(t);
+    bar.style.background = "var(--accent)";
+    bar.style.width = "100%";
+    document.getElementById(`progLbl-${idx}`).textContent = "⚠ " + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "↓ Download";
+    setTimeout(() => { prog.style.display = "none"; }, 5000);
+  }
+}
+</script>
 </body>
 </html>
