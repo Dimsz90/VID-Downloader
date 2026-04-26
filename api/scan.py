@@ -3,6 +3,59 @@ import json, re, requests
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 
+# ── Auth ──
+import os, time, hashlib, hmac
+from collections import defaultdict
+
+API_SECRET  = os.environ.get("API_SECRET", "changeme-set-in-vercel-env")
+_rate_store = defaultdict(list)
+
+def _make_token():
+    now_min = int(time.time() // 60)
+    return hmac.new(API_SECRET.encode(), str(now_min).encode(), hashlib.sha256).hexdigest()
+
+def _verify_token(token):
+    if not token: return False
+    now_min = int(time.time() // 60)
+    for m in [now_min, now_min - 1]:
+        exp = hmac.new(API_SECRET.encode(), str(m).encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(token, exp): return True
+    return False
+
+def _get_ip(handler):
+    for h in ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"]:
+        v = handler.headers.get(h)
+        if v: return v.split(",")[0].strip()
+    return handler.client_address[0]
+
+def _rate_ok(ip, limit=30, window=60):
+    now = time.time()
+    _rate_store[ip] = [t for t in _rate_store[ip] if now - t < window]
+    if len(_rate_store[ip]) >= limit: return False
+    _rate_store[ip].append(now)
+    return True
+
+def guard(handler):
+    ip = _get_ip(handler)
+    if not _rate_ok(ip):
+        _err(handler, 429, "Too many requests"); return False
+    token = handler.headers.get("x-api-token", "")
+    if not _verify_token(token):
+        _err(handler, 401, "Token tidak valid"); return False
+    return True
+
+def _err(handler, code, msg):
+    import json
+    body = json.dumps({"error": msg}).encode()
+    handler.send_response(code)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+
 try:
     import yt_dlp
 except ImportError:
@@ -113,6 +166,7 @@ def extract(page_url):
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
+        if not guard(self): return
         length = int(self.headers.get("Content-Length", 0))
         body   = json.loads(self.rfile.read(length) or b"{}")
         url    = body.get("url", "").strip()

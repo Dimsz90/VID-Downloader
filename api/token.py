@@ -1,6 +1,17 @@
 from http.server import BaseHTTPRequestHandler
-import json, time
-from ._auth import make_token, ALLOWED_ORIGINS
+import json, time, os, hashlib, hmac
+
+
+API_SECRET = os.environ.get("API_SECRET", "changeme-set-in-vercel-env")
+
+
+def make_token():
+    now_min = int(time.time() // 60)
+    return hmac.new(
+        API_SECRET.encode(),
+        str(now_min).encode(),
+        hashlib.sha256
+    ).hexdigest()
 
 
 class handler(BaseHTTPRequestHandler):
@@ -8,11 +19,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token      = make_token()
         expires_in = 60 - (int(time.time()) % 60)
-
-        self.send_json({
-            "token":      token,
-            "expires_in": expires_in,  # detik sampai token berganti
-        })
+        self.send_json({"token": token, "expires_in": expires_in})
 
     def do_OPTIONS(self):
         self.send_response(204)
