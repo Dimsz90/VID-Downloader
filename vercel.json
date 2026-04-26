@@ -1,5 +1,21 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/get-video.py" }
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/*.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/token",     "dest": "/api/token.py" },
+    { "src": "/api/get-video", "dest": "/api/get-video.py" },
+    { "src": "/api/scan",      "dest": "/api/scan.py" },
+    { "src": "/api/formats",   "dest": "/api/formats.py" },
+    { "src": "/api/download",  "dest": "/api/download.py" },
+    { "src": "/(.*)",          "dest": "/index.html" }
   ]
 }
