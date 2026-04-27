@@ -1,19 +1,12 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/*.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb",
-        "runtime": "python3.12"
-      }
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
+  "functions": {
+    "api/token.py":     { "maxDuration": 10 },
+    "api/get-video.py": { "maxDuration": 15 },
+    "api/scan.py":      { "maxDuration": 30 },
+    "api/formats.py":   { "maxDuration": 15 },
+    "api/download.py":  { "maxDuration": 60 }
+  },
   "routes": [
     { "src": "/api/token",     "dest": "/api/token.py" },
     { "src": "/api/get-video", "dest": "/api/get-video.py" },
@@ -21,19 +14,5 @@
     { "src": "/api/formats",   "dest": "/api/formats.py" },
     { "src": "/api/download",  "dest": "/api/download.py" },
     { "src": "/(.*)",          "dest": "/index.html" }
-  ],
-  "functions": {
-    "api/scan.py": {
-      "maxDuration": 30
-    },
-    "api/download.py": {
-      "maxDuration": 60
-    },
-    "api/formats.py": {
-      "maxDuration": 15
-    },
-    "api/get-video.py": {
-      "maxDuration": 15
-    }
-  }
+  ]
 }
