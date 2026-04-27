@@ -1,60 +1,24 @@
 {
   "version": 2,
-  "functions": {
-    "api/token.py": {
-      "maxDuration": 10
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
-    "api/get-video.py": {
-      "maxDuration": 15
-    },
-    "api/scan.py": {
-      "maxDuration": 30
-    },
-    "api/formats.py": {
-      "maxDuration": 15
-    },
-    "api/download.py": {
-      "maxDuration": 60
-    },
-    "api/debug.py": {
-      "maxDuration": 30
-    },
-    "api/imdb.py": {
-      "maxDuration": 20
+    {
+      "source": "/(.*)",
+      "destination": "/$1"
     }
-  },
-  "routes": [
+  ],
+  "headers": [
     {
-      "src": "/api/debug",
-      "dest": "/api/debug.py"
-    },
-    {
-      "src": "/api/token",
-      "dest": "/api/token.py"
-    },
-    {
-      "src": "/api/get-video",
-      "dest": "/api/get-video.py"
-    },
-    {
-      "src": "/api/scan",
-      "dest": "/api/scan.py"
-    },
-    {
-      "src": "/api/formats",
-      "dest": "/api/formats.py"
-    },
-    {
-      "src": "/api/download",
-      "dest": "/api/download.py"
-    },
-    {
-      "src": "/api/imdb",
-      "dest": "/api/imdb.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" }
+      ]
     }
   ]
 }
