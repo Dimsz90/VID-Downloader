@@ -1,18 +1,60 @@
 {
   "version": 2,
   "functions": {
-    "api/token.py":     { "maxDuration": 10 },
-    "api/get-video.py": { "maxDuration": 15 },
-    "api/scan.py":      { "maxDuration": 30 },
-    "api/formats.py":   { "maxDuration": 15 },
-    "api/download.py":  { "maxDuration": 60 }
+    "api/token.py": {
+      "maxDuration": 10
+    },
+    "api/get-video.py": {
+      "maxDuration": 15
+    },
+    "api/scan.py": {
+      "maxDuration": 30
+    },
+    "api/formats.py": {
+      "maxDuration": 15
+    },
+    "api/download.py": {
+      "maxDuration": 60
+    },
+    "api/debug.py": {
+      "maxDuration": 30
+    },
+    "api/imdb.py": {
+      "maxDuration": 20
+    }
   },
   "routes": [
-    { "src": "/api/token",     "dest": "/api/token.py" },
-    { "src": "/api/get-video", "dest": "/api/get-video.py" },
-    { "src": "/api/scan",      "dest": "/api/scan.py" },
-    { "src": "/api/formats",   "dest": "/api/formats.py" },
-    { "src": "/api/download",  "dest": "/api/download.py" },
-    { "src": "/(.*)",          "dest": "/index.html" }
+    {
+      "src": "/api/debug",
+      "dest": "/api/debug.py"
+    },
+    {
+      "src": "/api/token",
+      "dest": "/api/token.py"
+    },
+    {
+      "src": "/api/get-video",
+      "dest": "/api/get-video.py"
+    },
+    {
+      "src": "/api/scan",
+      "dest": "/api/scan.py"
+    },
+    {
+      "src": "/api/formats",
+      "dest": "/api/formats.py"
+    },
+    {
+      "src": "/api/download",
+      "dest": "/api/download.py"
+    },
+    {
+      "src": "/api/imdb",
+      "dest": "/api/imdb.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }

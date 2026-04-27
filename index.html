@@ -347,6 +347,69 @@
     .item-thumb { width: 90px; height: 55px; }
     .btn-go { padding: 16px 18px; font-size: 16px; }
   }
+
+  /* ══════════════════════════════
+     IMDB CINEMA MODE
+  ══════════════════════════════ */
+  #imdb-mode {
+    display: none;
+    position: fixed; inset: 0;
+    background: #000; z-index: 200;
+    flex-direction: column;
+  }
+
+  .imdb-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px; z-index: 10;
+    transition: opacity 0.4s;
+    gap: 12px;
+  }
+  .imdb-bar.faded { opacity: 0; pointer-events: none; }
+
+  .imdb-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+  .imdb-poster {
+    width: 36px; height: 54px;
+    border-radius: 4px; object-fit: cover;
+    flex-shrink: 0; background: #222;
+  }
+
+  .imdb-meta { min-width: 0; }
+
+  .imdb-title-bar {
+    font-family: var(--display); font-size: 18px;
+    letter-spacing: 1px; color: #fff;
+    white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 50vw;
+  }
+
+  .imdb-sub {
+    font-family: var(--mono); font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+
+  .imdb-sub span { display: flex; align-items: center; gap: 3px; }
+
+  #imdbFrame {
+    width: 100vw; height: 100vh;
+    border: none; background: #000;
+    display: block;
+  }
+
+  .imdb-loading {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px; background: #000; z-index: 5;
+    pointer-events: none;
+  }
+  .imdb-loading.hidden { display: none; }
+  .imdb-loading p { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
 </style>
 </head>
 <body>
@@ -362,7 +425,7 @@
     <div class="search-sub">// paste URL halaman atau link video langsung</div>
 
     <div class="search-row">
-      <input id="urlInput" type="url" placeholder="https://..." autocomplete="off" spellcheck="false">
+      <input id="urlInput" type="url" placeholder="https://imdb.com/title/tt... atau https://vidgf.com/d/... atau URL halaman lain" autocomplete="off" spellcheck="false">
       <button class="btn-go" id="btnGo" onclick="handleSubmit()">SCAN</button>
     </div>
 
@@ -466,7 +529,12 @@ async function handleSubmit() {
   resetUI();
   try {
     const domain = new URL(url).hostname.toLowerCase();
-    if (domain.includes("vidgf.com")) {
+    const isImdb = domain.includes("imdb.com") || domain.includes("streamimdb");
+    const isImdbId = /^tt\d{5,}$/.test(url.trim());
+
+    if (isImdb || isImdbId) {
+      await modeImdb(url.trim());
+    } else if (domain.includes("vidgf.com")) {
       await modeVidgf(url);
     } else {
       await modeScan(url);
@@ -786,5 +854,38 @@ async function dlVideo(idx) {
   }
 }
 </script>
+
+<!-- IMDB Cinema Mode -->
+<div id="imdb-mode">
+  <div class="imdb-loading" id="imdbLoading">
+    <div class="big-spinner"></div>
+    <p id="imdbLoadText">Mengambil info film...</p>
+  </div>
+
+  <div class="imdb-bar" id="imdbBar">
+    <div class="imdb-info">
+      <img class="imdb-poster" id="imdbPoster" src="" alt="">
+      <div class="imdb-meta">
+        <div class="imdb-title-bar" id="imdbTitle">Loading...</div>
+        <div class="imdb-sub">
+          <span id="imdbYear"></span>
+          <span id="imdbRating">⭐ <span id="imdbRatingVal"></span></span>
+          <span id="imdbGenre"></span>
+          <span id="imdbRuntime"></span>
+        </div>
+      </div>
+    </div>
+    <div class="cinema-btns">
+      <a id="imdbLink" href="#" target="_blank" class="cbtn">IMDB ↗</a>
+      <button class="cbtn" onclick="closeImdb()">✕ TUTUP</button>
+    </div>
+  </div>
+
+  <iframe id="imdbFrame" allowfullscreen
+    allow="autoplay; fullscreen; picture-in-picture"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
+  </iframe>
+</div>
+
 </body>
 </html>
