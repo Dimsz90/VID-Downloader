@@ -3,7 +3,11 @@
   "builds": [
     {
       "src": "api/*.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.12"
+      }
     },
     {
       "src": "index.html",
@@ -17,5 +21,19 @@
     { "src": "/api/formats",   "dest": "/api/formats.py" },
     { "src": "/api/download",  "dest": "/api/download.py" },
     { "src": "/(.*)",          "dest": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/scan.py": {
+      "maxDuration": 30
+    },
+    "api/download.py": {
+      "maxDuration": 60
+    },
+    "api/formats.py": {
+      "maxDuration": 15
+    },
+    "api/get-video.py": {
+      "maxDuration": 15
+    }
+  }
 }

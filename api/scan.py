@@ -141,12 +141,23 @@ def extract(page_url):
     except Exception as e:
         print(f"[scan] scrape error: {e}")
 
-    # yt-dlp
+    # yt-dlp — opsi khusus untuk Vercel serverless
     if yt_dlp:
-        null_logger = type("L", (), {"debug": lambda s,m: None, "info": lambda s,m: None,
-                                      "warning": lambda s,m: None, "error": lambda s,m: None})()
-        ydl_opts = {"quiet": True, "no_warnings": True, "extract_flat": "in_playlist",
-                    "skip_download": True, "noplaylist": False, "ignoreerrors": True, "logger": null_logger}
+        null_logger = type("L", (), {
+            "debug": lambda s,m: None, "info": lambda s,m: None,
+            "warning": lambda s,m: None, "error": lambda s,m: None,
+        })()
+        ydl_opts = {
+            "quiet": True, "no_warnings": True,
+            "extract_flat": "in_playlist", "skip_download": True,
+            "noplaylist": False, "ignoreerrors": True, "logger": null_logger,
+            "nocheckcertificate": True,
+            "socket_timeout": 8,
+            "retries": 2,
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            },
+        }
         for target in [page_url] + iframe_urls:
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -157,7 +168,8 @@ def extract(page_url):
                         url = entry.get("url") or entry.get("webpage_url", "")
                         if url and url not in found:
                             add(url, title=entry.get("title", ""), source="yt-dlp",
-                                thumb=entry.get("thumbnail", ""), duration=format_duration(entry.get("duration")))
+                                thumb=entry.get("thumbnail", ""),
+                                duration=format_duration(entry.get("duration")))
             except Exception: pass
 
     return list(found.values())
