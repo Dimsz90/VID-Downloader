@@ -1,3 +1,6 @@
-requests==2.32.3
-beautifulsoup4==4.12.3
-yt-dlp==2025.1.15
+flask
+flask-cors
+requests
+hls-parser
+beautifulsoup4
+y-dlp
