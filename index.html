@@ -159,12 +159,16 @@
     background: #000; z-index: 200;
   }
 
+  /* Top bar — always on top */
   .cinema-bar {
-    position: absolute; top: 0; left: 0; right: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
-    display: flex; align-items: center;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    padding: 14px 18px; z-index: 10;
+    padding: 14px 18px;
+    z-index: 210; /* lebih tinggi dari semua layer */
+    background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
     transition: opacity 0.4s;
   }
   .cinema-bar.faded { opacity: 0; pointer-events: none; }
@@ -188,19 +192,27 @@
   }
   .cbtn:hover { background: rgba(255,255,255,0.2); }
 
+  /* Video element — z-index 201 agar di atas overlay tapi di bawah bar */
   #cinemaVideo {
-    width: 100vw; height: 100vh;
-    object-fit: contain; background: #000;
-    display: block;
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 201;
+    background: #000;
+    display: none; /* Tersembunyi sampai video siap */
   }
 
+  /* Overlay loading/error — z-index 205, di atas video tapi di bawah bar */
   .cinema-overlay {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 14px; background: #000; z-index: 5;
+    gap: 14px; background: #000;
+    z-index: 205;
   }
-  .cinema-overlay.hidden { display: none; }
+  .cinema-overlay.hidden { display: none !important; }
 
   .big-spinner {
     width: 44px; height: 44px;
@@ -355,7 +367,6 @@
     display: none;
     position: fixed; inset: 0;
     background: #000; z-index: 200;
-    flex-direction: column;
   }
 
   .imdb-bar {
@@ -363,7 +374,8 @@
     background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
     display: flex; align-items: center;
     justify-content: space-between;
-    padding: 14px 18px; z-index: 10;
+    padding: 14px 18px;
+    z-index: 210; /* Di atas video dan overlay */
     transition: opacity 0.4s;
     gap: 12px;
   }
@@ -392,31 +404,55 @@
     display: flex; gap: 8px; flex-wrap: wrap;
   }
 
-  .imdb-sub span { display: flex; align-items: center; gap: 3px; }
+  /* IMDB Video — z-index 201 */
+  #imdbVideo {
+    width: 100vw; height: 100vh;
+    object-fit: contain;
+    position: absolute; top: 0; left: 0;
+    z-index: 201;
+    background: #000;
+    display: none; /* Tersembunyi sampai stream siap */
+  }
 
+  /* IMDB Iframe — z-index 201 (sama dengan video, bergantian) */
   #imdbFrame {
     width: 100vw; height: 100vh;
     border: none; background: #000;
-    display: block;
+    position: absolute; top: 0; left: 0;
+    z-index: 201;
+    display: none;
   }
 
+  /* IMDB Loading overlay — z-index 205 */
   .imdb-loading {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 14px; background: #000; z-index: 5;
-    pointer-events: none;
+    gap: 14px; background: #000;
+    z-index: 205;
   }
-  .imdb-loading.hidden { display: none; }
+  .imdb-loading.hidden { display: none !important; }
   .imdb-loading p { font-family: var(--mono); font-size: 11px; color: var(--text3); }
 
+  /* Stream loading — z-index 204, muncul sebentar setelah info didapat */
+  #imdbStreamLoading {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    background: #000; z-index: 204;
+  }
+  #imdbStreamLoading p {
+    font-family: var(--mono); font-size: 11px; color: var(--text3);
+  }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
 </head>
 <body>
 
 <header>
   <div class="logo">STREAM<span>VAULT</span></div>
-  <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">v2.0</div>
+  <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">v2.1</div>
 </header>
 
 <main>
@@ -452,23 +488,28 @@
   </div>
 </main>
 
-<!-- Cinema mode (vidgf) -->
+<!-- ════════════════════════════
+     CINEMA MODE (vidgf)
+════════════════════════════ -->
 <div id="cinema-mode">
 
-  <!-- Loading overlay -->
+  <!-- Loading overlay (z-index: 205) -->
   <div class="cinema-overlay" id="cinemaLoading">
     <div class="big-spinner"></div>
     <p id="cinemaLoadText">Mengekstrak link video...</p>
   </div>
 
-  <!-- Error overlay -->
+  <!-- Error overlay (z-index: 205) -->
   <div class="cinema-overlay hidden" id="cinemaError">
     <h3>GAGAL</h3>
     <p id="cinemaErrText">Tidak bisa mengambil link video.</p>
     <button class="cbtn" style="margin-top:8px" onclick="closeCinema()">← KEMBALI</button>
   </div>
 
-  <!-- Top bar -->
+  <!-- Video element (z-index: 201) — tersembunyi sampai siap -->
+  <video id="cinemaVideo" controls autoplay playsinline></video>
+
+  <!-- Top bar (z-index: 210) — selalu paling atas -->
   <div class="cinema-bar" id="cinemaBar">
     <div class="cinema-title" id="cinemaTitle">vidgf player</div>
     <div class="cinema-btns">
@@ -477,394 +518,39 @@
       <button class="cbtn" onclick="closeCinema()">✕ TUTUP</button>
     </div>
   </div>
-
-  <video id="cinemaVideo" controls autoplay playsinline></video>
 </div>
 
-<footer>StreamVault · yt-dlp + vidgf extractor · localhost:5000</footer>
-
-<script>
-const API = "";
-let allVideos  = [];
-let selFormats = {};
-let cinemaUrl  = "";
-let spaOn      = false;
-let hideTimer  = null;
-
-// ── Token manager ──────────────────────────────────────────────────────────
-let _token    = null;
-let _tokenExp = 0;
-
-async function getToken() {
-  if (_token && Date.now() < _tokenExp - 5000) return _token;
-  try {
-    const res  = await fetch(`${API}/api/token`);
-    const data = await res.json();
-    _token    = data.token;
-    _tokenExp = Date.now() + (data.expires_in * 1000);
-    return _token;
-  } catch(e) { return null; }
-}
-
-async function apiFetch(url, options = {}) {
-  const token = await getToken();
-  return fetch(url, {
-    ...options,
-    headers: { ...(options.headers || {}), "x-api-token": token || "" }
-  });
-}
-
-// ── SPA toggle ────────────────────────────────────────────────────────────────
-function toggleSpa() {
-  spaOn = !spaOn;
-  const el = document.getElementById("spaToggle");
-  el.classList.toggle("on", spaOn);
-  document.getElementById("spaLabel").textContent = spaOn ? "Mode SPA (on)" : "Mode SPA (off)";
-}
-
-// ── Submit ────────────────────────────────────────────────────────────────────
-async function handleSubmit() {
-  const url = document.getElementById("urlInput").value.trim();
-  if (!url) return;
-  resetUI();
-  try {
-    const domain = new URL(url).hostname.toLowerCase();
-    const isImdb = domain.includes("imdb.com") || domain.includes("streamimdb");
-    const isImdbId = /^tt\d{5,}$/.test(url.trim());
-
-    if (isImdb || isImdbId) {
-      await modeImdb(url.trim());
-    } else if (domain.includes("vidgf.com")) {
-      await modeVidgf(url);
-    } else {
-      await modeScan(url);
-    }
-  } catch(e) {
-    showError("URL tidak valid: " + e.message);
-  }
-}
-
-document.getElementById("urlInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") handleSubmit();
-});
-
-// ── UI helpers ────────────────────────────────────────────────────────────────
-function resetUI() {
-  document.getElementById("list-mode").style.display   = "none";
-  document.getElementById("cinema-mode").style.display = "none";
-  document.getElementById("errorBox").style.display    = "none";
-  document.getElementById("emptyState").style.display  = "none";
-  document.getElementById("videoList").innerHTML = "";
-  allVideos = []; selFormats = {};
-}
-
-function setStatus(show, text="") {
-  const s = document.getElementById("status");
-  s.style.display = show ? "flex" : "none";
-  document.getElementById("statusText").textContent = text;
-}
-
-function showError(msg) {
-  const el = document.getElementById("errorBox");
-  el.textContent = "⚠ " + msg;
-  el.style.display = "block";
-}
-
-function setBtnLoading(on) {
-  const b = document.getElementById("btnGo");
-  b.disabled = on;
-  b.textContent = on ? "..." : "SCAN";
-}
-
-function esc(s) {
-  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// CINEMA MODE — vidgf.com
-// ══════════════════════════════════════════════════════════════════════════════
-
-async function modeVidgf(url) {
-  // Ekstrak video ID
-  let videoId;
-  try {
-    const u = new URL(url);
-    videoId = u.searchParams.get("id")
-      || u.pathname.replace(/^\/+/,"").split("/").filter(Boolean).pop();
-  } catch(e) { showError("URL tidak valid"); return; }
-
-  if (!videoId) { showError("Tidak bisa ekstrak video ID."); return; }
-
-  // Tampilkan cinema + loading
-  const cinema = document.getElementById("cinema-mode");
-  cinema.style.display = "block";
-  document.getElementById("cinemaLoading").classList.remove("hidden");
-  document.getElementById("cinemaError").classList.add("hidden");
-  document.getElementById("cinemaVideo").style.display = "none";
-  document.getElementById("cinemaLoadText").textContent = `Fetching ID: ${videoId}...`;
-
-  setStatus(true, `Mengekstrak vidgf/${videoId}`);
-  setBtnLoading(true);
-
-  try {
-    const res  = await apiFetch(`${API}/api/get-video?id=${encodeURIComponent(videoId)}`);
-    const data = await res.json();
-
-    if (data.status !== "success" || !data.link) {
-      throw new Error(data.message || "Ekstraksi gagal");
-    }
-
-    cinemaUrl = data.link;
-    document.getElementById("cinemaTitle").textContent = `vidgf / ${videoId}`;
-
-    const vid = document.getElementById("cinemaVideo");
-    vid.src = data.link;
-    vid.style.display = "block";
-    document.getElementById("cinemaLoading").classList.add("hidden");
-    startBarTimer();
-
-  } catch(e) {
-    document.getElementById("cinemaLoading").classList.add("hidden");
-    document.getElementById("cinemaError").classList.remove("hidden");
-    document.getElementById("cinemaErrText").textContent = e.message;
-  } finally {
-    setStatus(false);
-    setBtnLoading(false);
-  }
-}
-
-// Auto-hide top bar
-function startBarTimer() {
-  const bar = document.getElementById("cinemaBar");
-  bar.classList.remove("faded");
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => bar.classList.add("faded"), 3000);
-}
-
-document.addEventListener("mousemove", () => {
-  if (document.getElementById("cinema-mode").style.display !== "none") startBarTimer();
-});
-
-document.addEventListener("touchstart", () => {
-  if (document.getElementById("cinema-mode").style.display !== "none") startBarTimer();
-});
-
-function closeCinema() {
-  document.getElementById("cinema-mode").style.display = "none";
-  const v = document.getElementById("cinemaVideo");
-  v.pause(); v.src = "";
-  cinemaUrl = "";
-}
-
-function copyUrl() {
-  if (!cinemaUrl) return;
-  navigator.clipboard.writeText(cinemaUrl).then(() => {
-    const b = document.getElementById("btnCopy");
-    b.textContent = "✓ COPIED";
-    setTimeout(() => b.textContent = "COPY URL", 2000);
-  });
-}
-
-function dlCinema() {
-  if (!cinemaUrl) return;
-  const a = document.createElement("a");
-  a.href = cinemaUrl;
-  a.download = cinemaUrl.split("/").pop().split("?")[0] || "video.mp4";
-  a.click();
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// LIST MODE — yt-dlp scan
-// ══════════════════════════════════════════════════════════════════════════════
-
-async function modeScan(url) {
-  setStatus(true, spaOn ? "Membuka headless browser..." : "Scanning halaman...");
-  setBtnLoading(true);
-
-  try {
-    const res  = await apiFetch(`${API}/api/scan`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ url, spa: spaOn })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Scan gagal");
-
-    allVideos = data.videos || [];
-    document.getElementById("list-mode").style.display = "block";
-
-    if (allVideos.length === 0) {
-      document.getElementById("emptyState").style.display = "block";
-    } else {
-      renderList(allVideos);
-    }
-  } catch(e) {
-    showError(e.message);
-  } finally {
-    setStatus(false);
-    setBtnLoading(false);
-  }
-}
-
-function tagCls(src) {
-  if (!src) return "tag-p";
-  if (src.includes("network")) return "tag-n";
-  if (src.includes("yt-dlp"))  return "tag-s";
-  return "tag-p";
-}
-
-function renderList(videos) {
-  const list = document.getElementById("videoList");
-  list.innerHTML = "";
-  document.getElementById("listCount").textContent = `${videos.length} video ditemukan`;
-
-  videos.forEach((v, i) => {
-    const el = document.createElement("div");
-    el.className = "video-item";
-    el.id = `item-${i}`;
-    el.style.animationDelay = `${i * 35}ms`;
-
-    const thumb = v.thumb
-      ? `<img src="${esc(v.thumb)}" alt="" onerror="this.style.display='none'">`
-      : `<span class="thumb-icon">▶</span>`;
-
-    const dur = v.duration ? `<div class="item-dur">${esc(v.duration)}</div>` : "";
-
-    el.innerHTML = `
-      <div class="item-thumb">${thumb}${dur}</div>
-      <div class="item-info">
-        <div class="item-title" title="${esc(v.title)}">${esc(v.title || "Video")}</div>
-        <div class="item-meta">
-          <span class="tag tag-p">${esc(v.platform)}</span>
-          <span class="tag ${tagCls(v.source)}">${esc(v.source)}</span>
-        </div>
-        <div class="item-url">${esc(v.url)}</div>
-        <div class="item-actions">
-          <button class="btn-fmt" onclick="loadFormats(${i},event)">Format ▾</button>
-          <button class="btn-dl" id="dlbtn-${i}" onclick="dlVideo(${i})">↓ Download</button>
-        </div>
-        <div class="fmt-drop" id="fmt-${i}">
-          <div class="fmt-grid" id="fmtgrid-${i}"></div>
-        </div>
-        <div class="dl-prog" id="prog-${i}">
-          <div class="prog-row">
-            <span id="progLbl-${i}">Mengunduh...</span>
-            <span id="progPct-${i}">0%</span>
-          </div>
-          <div class="prog-track"><div class="prog-bar" id="progBar-${i}"></div></div>
-        </div>
-      </div>`;
-    list.appendChild(el);
-  });
-}
-
-// ── Format picker ─────────────────────────────────────────────────────────────
-async function loadFormats(idx, evt) {
-  evt && evt.stopPropagation();
-  const drop = document.getElementById(`fmt-${idx}`);
-  const grid = document.getElementById(`fmtgrid-${idx}`);
-  if (drop.style.display === "block") { drop.style.display = "none"; return; }
-  drop.style.display = "block";
-  grid.innerHTML = `<span style="font-size:11px;color:var(--text3)">Memuat...</span>`;
-
-  const v = allVideos[idx];
-  try {
-    const res  = await apiFetch(`${API}/api/formats`, {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ url: v.url })
-    });
-    const data = await res.json();
-    grid.innerHTML = "";
-
-    // Auto best
-    const auto = mkFmtBtn("Best (auto)", true);
-    auto.onclick = () => selFmt(idx, "bestvideo+bestaudio/best", auto, grid);
-    grid.appendChild(auto);
-    selFormats[idx] = "bestvideo+bestaudio/best";
-
-    (data.formats || []).forEach(f => {
-      const b = mkFmtBtn(`${f.label} · ${f.size}`, false);
-      b.onclick = () => selFmt(idx, f.format_id, b, grid);
-      grid.appendChild(b);
-    });
-  } catch(e) {
-    grid.innerHTML = `<span style="font-size:11px;color:var(--accent)">Gagal memuat</span>`;
-  }
-}
-
-function mkFmtBtn(label, active) {
-  const b = document.createElement("button");
-  b.className = "fmt-pill" + (active ? " active" : "");
-  b.textContent = label;
-  return b;
-}
-
-function selFmt(idx, fid, btn, grid) {
-  selFormats[idx] = fid;
-  grid.querySelectorAll(".fmt-pill").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-}
-
-// ── Download ──────────────────────────────────────────────────────────────────
-async function dlVideo(idx) {
-  const v   = allVideos[idx];
-  const fid = selFormats[idx] || "bestvideo+bestaudio/best";
-  const btn = document.getElementById(`dlbtn-${idx}`);
-  const prog = document.getElementById(`prog-${idx}`);
-  const bar  = document.getElementById(`progBar-${idx}`);
-
-  btn.disabled = true; btn.textContent = "...";
-  prog.style.display = "block";
-
-  let pct = 0;
-  const t = setInterval(() => {
-    pct = Math.min(pct + Math.random() * 4, 88);
-    bar.style.width = pct.toFixed(0) + "%";
-    document.getElementById(`progPct-${idx}`).textContent = pct.toFixed(0) + "%";
-  }, 400);
-
-  try {
-    const res = await apiFetch(`${API}/api/download`, {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ url: v.url, format_id: fid, title: v.title || "video" })
-    });
-
-    if (!res.ok) throw new Error((await res.json()).error || "Gagal");
-
-    clearInterval(t);
-    bar.style.width = "100%";
-    document.getElementById(`progPct-${idx}`).textContent = "100%";
-    document.getElementById(`progLbl-${idx}`).textContent = "✓ Selesai";
-
-    const blob = await res.blob();
-    const cd   = res.headers.get("Content-Disposition") || "";
-    const nm   = (cd.match(/filename="?(.+?)"?(?:;|$)/) || [])[1] || `video_${idx}.mp4`;
-    const a    = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = nm; a.click();
-    URL.revokeObjectURL(a.href);
-
-  } catch(e) {
-    clearInterval(t);
-    bar.style.background = "var(--accent)";
-    bar.style.width = "100%";
-    document.getElementById(`progLbl-${idx}`).textContent = "⚠ " + e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = "↓ Download";
-    setTimeout(() => { prog.style.display = "none"; }, 5000);
-  }
-}
-</script>
-
-<!-- IMDB Cinema Mode -->
+<!-- ════════════════════════════
+     IMDB CINEMA MODE
+════════════════════════════ -->
 <div id="imdb-mode">
+
+  <!-- Loading overlay (z-index: 205) -->
   <div class="imdb-loading" id="imdbLoading">
     <div class="big-spinner"></div>
     <p id="imdbLoadText">Mengambil info film...</p>
   </div>
 
+  <!-- Stream loading overlay (z-index: 204) -->
+  <div id="imdbStreamLoading">
+    <div class="big-spinner"></div>
+    <p>Mengekstrak stream URL...</p>
+  </div>
+
+  <!-- HLS video player (z-index: 201) -->
+  <video id="imdbVideo" controls autoplay playsinline></video>
+
+  <!-- Fallback iframe (z-index: 201) -->
+  <iframe id="imdbFrame"
+    allowfullscreen
+    allow="autoplay; fullscreen; picture-in-picture"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
+  </iframe>
+
+  <!-- Top bar (z-index: 210) -->
   <div class="imdb-bar" id="imdbBar">
     <div class="imdb-info">
-      <img class="imdb-poster" id="imdbPoster" src="" alt="">
+      <img class="imdb-poster" id="imdbPoster" src="" alt="" style="display:none">
       <div class="imdb-meta">
         <div class="imdb-title-bar" id="imdbTitle">Loading...</div>
         <div class="imdb-sub">
@@ -880,12 +566,502 @@ async function dlVideo(idx) {
       <button class="cbtn" onclick="closeImdb()">✕ TUTUP</button>
     </div>
   </div>
-
-  <iframe id="imdbFrame" allowfullscreen
-    allow="autoplay; fullscreen; picture-in-picture"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
-  </iframe>
 </div>
+
+<footer>StreamVault · yt-dlp + vidgf extractor · localhost:5000</footer>
+
+<script>
+const API = "";
+let allVideos  = [];
+let selFormats = {};
+let cinemaUrl  = "";
+let spaOn      = false;
+let hlsInstance = null;
+let hideTimer   = null;
+let imdbHideTimer = null;
+
+/* ═══════════ TOKEN ═══════════ */
+let _token = null, _tokenExp = 0;
+
+async function getToken() {
+  if (_token && Date.now() < _tokenExp - 5000) return _token;
+  try {
+    const r = await fetch(`${API}/api/token`);
+    const d = await r.json();
+    _token = d.token;
+    _tokenExp = Date.now() + d.expires_in * 1000;
+    return _token;
+  } catch { return null; }
+}
+
+async function apiFetch(url, opt={}) {
+  const token = await getToken();
+  return fetch(url, {
+    ...opt,
+    headers: { ...(opt.headers||{}), "x-api-token": token||"" }
+  });
+}
+
+/* ═══════════ SPA ═══════════ */
+function toggleSpa() {
+  spaOn = !spaOn;
+  const el = document.getElementById("spaToggle");
+  el.classList.toggle("on", spaOn);
+  document.getElementById("spaLabel").textContent =
+    spaOn ? "Mode SPA (on)" : "Mode SPA (off)";
+}
+
+/* ═══════════ UI HELPERS ═══════════ */
+function resetUI() {
+  document.getElementById("list-mode").style.display = "none";
+  document.getElementById("cinema-mode").style.display = "none";
+  document.getElementById("imdb-mode").style.display = "none";
+  document.getElementById("errorBox").style.display = "none";
+  document.getElementById("videoList").innerHTML = "";
+  allVideos = []; selFormats = {};
+}
+
+function setStatus(s, t="") {
+  const el = document.getElementById("status");
+  el.style.display = s ? "flex" : "none";
+  document.getElementById("statusText").textContent = t;
+}
+
+function showError(m) {
+  const el = document.getElementById("errorBox");
+  el.textContent = "⚠ " + m;
+  el.style.display = "block";
+}
+
+function setBtnLoading(b) {
+  const btn = document.getElementById("btnGo");
+  btn.disabled = b;
+  btn.textContent = b ? "..." : "SCAN";
+}
+
+function esc(s) {
+  return (s||"").replace(/[&<>"]/g, m => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]
+  ));
+}
+
+/* ═══════════ CINEMA (vidgf) HELPERS ═══════════ */
+
+/**
+ * Tampilkan video, sembunyikan semua overlay
+ */
+function cinemaShowVideo() {
+  const videoEl = document.getElementById("cinemaVideo");
+  document.getElementById("cinemaLoading").classList.add("hidden");
+  document.getElementById("cinemaError").classList.add("hidden");
+  videoEl.style.display = "block";
+}
+
+/**
+ * Tampilkan loading, sembunyikan video + error
+ */
+function cinemaShowLoading(text) {
+  const videoEl = document.getElementById("cinemaVideo");
+  videoEl.style.display = "none";
+  document.getElementById("cinemaError").classList.add("hidden");
+  document.getElementById("cinemaLoadText").textContent = text || "Mengekstrak link video...";
+  document.getElementById("cinemaLoading").classList.remove("hidden");
+}
+
+/**
+ * Tampilkan error, sembunyikan video + loading
+ */
+function cinemaShowError(msg) {
+  const videoEl = document.getElementById("cinemaVideo");
+  videoEl.style.display = "none";
+  document.getElementById("cinemaLoading").classList.add("hidden");
+  document.getElementById("cinemaErrText").textContent = msg;
+  document.getElementById("cinemaError").classList.remove("hidden");
+}
+
+function closeCinema() {
+  const videoEl = document.getElementById("cinemaVideo");
+  document.getElementById("cinema-mode").style.display = "none";
+
+  // Stop video & cleanup HLS
+  videoEl.pause();
+  videoEl.src = "";
+  videoEl.style.display = "none";
+
+  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+  // Reset overlay state
+  document.getElementById("cinemaError").classList.add("hidden");
+  document.getElementById("cinemaLoading").classList.remove("hidden");
+  document.getElementById("cinemaLoadText").textContent = "Mengekstrak link video...";
+
+  clearTimeout(hideTimer);
+}
+
+function copyUrl() {
+  if (cinemaUrl) {
+    navigator.clipboard.writeText(cinemaUrl).catch(() => {});
+  }
+}
+
+function dlCinema() {
+  if (cinemaUrl) {
+    const a = document.createElement("a");
+    a.href = cinemaUrl;
+    a.download = "video-stream.mp4";
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    alert("Link video belum dimuat!");
+  }
+}
+
+/* Auto-hide cinema bar */
+document.getElementById("cinema-mode").addEventListener("mousemove", () => {
+  document.getElementById("cinemaBar").classList.remove("faded");
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    document.getElementById("cinemaBar").classList.add("faded");
+  }, 3000);
+});
+
+/* ═══════════ IMDB HELPERS ═══════════ */
+
+/**
+ * Tampilkan video IMDB, sembunyikan iframe dan semua overlay
+ */
+function imdbShowVideo() {
+  document.getElementById("imdbLoading").classList.add("hidden");
+  document.getElementById("imdbStreamLoading").style.display = "none";
+  document.getElementById("imdbFrame").style.display = "none";
+  document.getElementById("imdbVideo").style.display = "block";
+}
+
+/**
+ * Tampilkan iframe IMDB, sembunyikan video dan semua overlay
+ */
+function imdbShowIframe(src) {
+  document.getElementById("imdbLoading").classList.add("hidden");
+  document.getElementById("imdbStreamLoading").style.display = "none";
+  document.getElementById("imdbVideo").style.display = "none";
+  const frame = document.getElementById("imdbFrame");
+  frame.src = src;
+  frame.style.display = "block";
+}
+
+/**
+ * Tampilkan loading info film
+ */
+function imdbShowLoading(text) {
+  document.getElementById("imdbVideo").style.display = "none";
+  document.getElementById("imdbFrame").style.display = "none";
+  document.getElementById("imdbStreamLoading").style.display = "none";
+  document.getElementById("imdbLoadText").textContent = text || "Mengambil info film...";
+  document.getElementById("imdbLoading").classList.remove("hidden");
+}
+
+/**
+ * Tampilkan loading stream (setelah info film didapat)
+ */
+function imdbShowStreamLoading() {
+  document.getElementById("imdbLoading").classList.add("hidden");
+  document.getElementById("imdbVideo").style.display = "none";
+  document.getElementById("imdbFrame").style.display = "none";
+  document.getElementById("imdbStreamLoading").style.display = "flex";
+}
+
+function closeImdb() {
+  document.getElementById("imdb-mode").style.display = "none";
+
+  // Stop video
+  const v = document.getElementById("imdbVideo");
+  v.pause();
+  v.src = "";
+  v.style.display = "none";
+
+  // Stop iframe
+  const f = document.getElementById("imdbFrame");
+  f.src = "";
+  f.style.display = "none";
+
+  // Cleanup HLS
+  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+  // Reset overlays
+  document.getElementById("imdbStreamLoading").style.display = "none";
+  document.getElementById("imdbLoading").classList.remove("hidden");
+  document.getElementById("imdbLoadText").textContent = "Mengambil info film...";
+
+  clearTimeout(imdbHideTimer);
+}
+
+/* Auto-hide IMDB bar */
+document.getElementById("imdb-mode").addEventListener("mousemove", () => {
+  document.getElementById("imdbBar").classList.remove("faded");
+  clearTimeout(imdbHideTimer);
+  imdbHideTimer = setTimeout(() => {
+    document.getElementById("imdbBar").classList.add("faded");
+  }, 4000);
+});
+
+/* ═══════════ MAIN HANDLER ═══════════ */
+async function handleSubmit() {
+  const url = document.getElementById("urlInput").value.trim();
+  if (!url) return;
+  resetUI();
+
+  try {
+    const d = new URL(url).hostname.toLowerCase();
+    const isImdb = d.includes("imdb") || /^tt\d+/.test(url);
+
+    if (isImdb) return modeImdb(url);
+    if (d.includes("vidgf")) return modeVidgf(url);
+    return modeScan(url);
+
+  } catch(e) {
+    showError("URL tidak valid");
+  }
+}
+
+document.getElementById("urlInput")
+  .addEventListener("keydown", e => e.key === "Enter" && handleSubmit());
+
+/* ═══════════ IMDB MODE ═══════════ */
+function extractImdbId(u) {
+  const m = u.match(/tt(\d+)/);
+  return m ? `tt${m[1]}` : (u.startsWith("tt") ? u : null);
+}
+
+async function modeImdb(url) {
+  const id = extractImdbId(url);
+  if (!id) return showError("IMDB ID tidak valid (Contoh: tt1234567)");
+
+  document.getElementById("imdb-mode").style.display = "block";
+  imdbShowLoading("Mengambil info film...");
+  setBtnLoading(true);
+
+  try {
+    const response = await fetch(`${API}/api/imdb?id=${id}&action=stream`);
+    const data = await response.json();
+
+    if (data.status === "success") {
+      updateImdbUI(data, id);
+
+      if (data.stream_url) {
+        imdbShowStreamLoading();
+        playHls(data.stream_url, data.embed_url);
+      } else {
+        console.warn("Stream URL tidak ditemukan, fallback ke iframe.");
+        imdbShowIframe(data.embed_url || `https://streamimdb.ru/embed/movie/${id}`);
+      }
+    } else {
+      throw new Error(data.error || "Gagal mengambil data");
+    }
+  } catch(e) {
+    console.error("IMDB Error:", e);
+    showError("Gagal memuat film: " + e.message);
+    imdbShowIframe(`https://streamimdb.ru/embed/movie/${id}`);
+  } finally {
+    setBtnLoading(false);
+    // Mulai timer auto-hide bar
+    clearTimeout(imdbHideTimer);
+    imdbHideTimer = setTimeout(() => {
+      document.getElementById("imdbBar").classList.add("faded");
+    }, 4000);
+  }
+}
+
+function updateImdbUI(d, id) {
+  document.getElementById("imdbTitle").textContent = d.title || id;
+  document.getElementById("imdbYear").textContent = d.year || "";
+  document.getElementById("imdbRatingVal").textContent = d.rating ? d.rating + "/10" : "";
+  document.getElementById("imdbGenre").textContent = d.genre || "";
+  document.getElementById("imdbRuntime").textContent = d.runtime || "";
+  document.getElementById("imdbLink").href = d.imdb_url || "#";
+
+  const p = document.getElementById("imdbPoster");
+  if (d.poster && d.poster !== "N/A") {
+    p.src = d.poster;
+    p.style.display = "block";
+  } else {
+    p.style.display = "none";
+  }
+}
+
+function playHls(proxiedUrl) {
+  const v = document.getElementById("imdbVideo");
+
+  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+  if (Hls.isSupported()) {
+    hlsInstance = new Hls({
+      maxBufferLength: 30,
+      xhrSetup: function(xhr) {
+        xhr.withCredentials = false;
+      }
+    });
+
+    hlsInstance.loadSource(proxiedUrl);
+    hlsInstance.attachMedia(v);
+
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+      // Stream siap — tampilkan video, sembunyikan overlay
+      imdbShowVideo();
+      v.play().catch(() => console.log("Autoplay blocked"));
+    });
+
+    hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+        console.error("HLS Fatal Error:", data);
+        // Fallback ke iframe jika HLS gagal total
+        imdbShowIframe(`https://streamimdb.ru/embed/movie/`);
+      }
+    });
+  } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+    // Safari native HLS
+    v.src = proxiedUrl;
+    v.addEventListener("loadedmetadata", () => {
+      imdbShowVideo();
+      v.play().catch(() => {});
+    }, { once: true });
+  } else {
+    // Browser tidak support HLS sama sekali
+    imdbShowIframe(`https://streamimdb.ru/embed/movie/`);
+  }
+}
+
+/* ═══════════ VIDGF MODE ═══════════ */
+async function modeVidgf(url) {
+  const id = url.split("/").pop();
+
+  // Tampilkan cinema mode dalam keadaan loading
+  document.getElementById("cinema-mode").style.display = "block";
+  cinemaShowLoading("Mengekstrak link video...");
+
+  try {
+    const res = await apiFetch(`${API}/api/get-video?id=${id}`);
+    const d = await res.json();
+
+    if (!d.link) throw new Error("Link tidak ditemukan dari server");
+
+    cinemaUrl = d.link;
+
+    const videoEl = document.getElementById("cinemaVideo");
+
+    if (d.link.includes(".m3u8") && Hls.isSupported()) {
+      // Pasang HLS dulu sebelum tampilkan video
+      if (hlsInstance) hlsInstance.destroy();
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(d.link);
+      hlsInstance.attachMedia(videoEl);
+
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        // Manifest sudah diparse — tampilkan video
+        cinemaShowVideo();
+        videoEl.play().catch(() => {});
+      });
+
+      hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          cinemaShowError("HLS stream gagal dimuat: " + (data.type || "unknown error"));
+        }
+      });
+    } else {
+      // MP4 atau format biasa
+      videoEl.src = d.link;
+
+      // Tunggu metadata sebelum tampilkan
+      videoEl.addEventListener("loadedmetadata", () => {
+        cinemaShowVideo();
+        videoEl.play().catch(() => {});
+      }, { once: true });
+
+      // Fallback jika loadedmetadata tidak trigger
+      videoEl.addEventListener("canplay", () => {
+        cinemaShowVideo();
+      }, { once: true });
+    }
+
+  } catch(e) {
+    cinemaShowError(e.message || "Tidak bisa mengambil link video.");
+  }
+}
+
+/* ═══════════ SCAN MODE ═══════════ */
+async function modeScan(url) {
+  setStatus(true, "Scan...");
+  setBtnLoading(true);
+
+  try {
+    const d = await (await apiFetch(`${API}/api/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, spa: spaOn })
+    })).json();
+
+    allVideos = d.videos || [];
+    document.getElementById("list-mode").style.display = "block";
+
+    if (allVideos.length === 0) {
+      document.getElementById("emptyState").style.display = "block";
+      document.getElementById("listCount").textContent = "0 video";
+    } else {
+      document.getElementById("emptyState").style.display = "none";
+      document.getElementById("listCount").textContent = allVideos.length + " video ditemukan";
+      renderVideoList(allVideos);
+    }
+
+  } catch(e) {
+    showError(e.message);
+  }
+
+  setStatus(false);
+  setBtnLoading(false);
+}
+
+function renderVideoList(videos) {
+  const list = document.getElementById("videoList");
+  list.innerHTML = "";
+  videos.forEach((v, i) => {
+    const item = document.createElement("div");
+    item.className = "video-item";
+    item.style.animationDelay = (i * 50) + "ms";
+    item.innerHTML = `
+      <div class="item-thumb">
+        ${v.thumbnail ? `<img src="${esc(v.thumbnail)}" alt="" onerror="this.style.display='none'">` : `<div class="thumb-icon">▶</div>`}
+        ${v.duration ? `<div class="item-dur">${esc(v.duration)}</div>` : ""}
+      </div>
+      <div class="item-info">
+        <div class="item-title">${esc(v.title || "Video " + (i+1))}</div>
+        <div class="item-meta">
+          ${v.source ? `<span class="tag tag-s">${esc(v.source)}</span>` : ""}
+          ${v.format ? `<span class="tag tag-p">${esc(v.format)}</span>` : ""}
+          ${v.quality ? `<span class="tag tag-n">${esc(v.quality)}</span>` : ""}
+        </div>
+        <div class="item-url">${esc(v.url)}</div>
+        <div class="item-actions">
+          <button class="btn-dl" onclick="dlItem(${i})">↓ DOWNLOAD</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function dlItem(i) {
+  const v = allVideos[i];
+  if (!v || !v.url) return;
+  const a = document.createElement("a");
+  a.href = v.url;
+  a.download = (v.title || "video") + ".mp4";
+  a.target = "_blank";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+</script>
 
 </body>
 </html>

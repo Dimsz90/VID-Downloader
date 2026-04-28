@@ -3,59 +3,6 @@ import json, re, requests
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 
-# ── Auth ──
-import os, time, hashlib, hmac
-from collections import defaultdict
-
-API_SECRET  = os.environ.get("API_SECRET", "changeme-set-in-vercel-env")
-_rate_store = defaultdict(list)
-
-def _make_token():
-    now_min = int(time.time() // 60)
-    return hmac.new(API_SECRET.encode(), str(now_min).encode(), hashlib.sha256).hexdigest()
-
-def _verify_token(token):
-    if not token: return False
-    now_min = int(time.time() // 60)
-    for m in [now_min, now_min - 1]:
-        exp = hmac.new(API_SECRET.encode(), str(m).encode(), hashlib.sha256).hexdigest()
-        if hmac.compare_digest(token, exp): return True
-    return False
-
-def _get_ip(handler):
-    for h in ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"]:
-        v = handler.headers.get(h)
-        if v: return v.split(",")[0].strip()
-    return handler.client_address[0]
-
-def _rate_ok(ip, limit=30, window=60):
-    now = time.time()
-    _rate_store[ip] = [t for t in _rate_store[ip] if now - t < window]
-    if len(_rate_store[ip]) >= limit: return False
-    _rate_store[ip].append(now)
-    return True
-
-def guard(handler):
-    ip = _get_ip(handler)
-    if not _rate_ok(ip):
-        _err(handler, 429, "Too many requests"); return False
-    token = handler.headers.get("x-api-token", "")
-    if not _verify_token(token):
-        _err(handler, 401, "Token tidak valid"); return False
-    return True
-
-def _err(handler, code, msg):
-    import json
-    body = json.dumps({"error": msg}).encode()
-    handler.send_response(code)
-    handler.send_header("Content-Type", "application/json")
-    handler.send_header("Content-Length", str(len(body)))
-    handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.end_headers()
-    handler.wfile.write(body)
-
-
-
 try:
     import yt_dlp
 except ImportError:
@@ -63,19 +10,16 @@ except ImportError:
 
 
 def is_video_url(url):
-    exts = {'.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.m3u8', '.ts'}
+    exts = {'.mp4','.webm','.ogg','.mov','.avi','.mkv','.flv','.m3u8','.ts'}
     return any(urlparse(url).path.lower().endswith(e) for e in exts)
 
 
 def detect_platform(url):
-    mapping = {
-        "youtube.com": "YouTube", "youtu.be": "YouTube",
-        "instagram.com": "Instagram", "tiktok.com": "TikTok",
-        "twitter.com": "Twitter/X", "x.com": "Twitter/X",
-        "vimeo.com": "Vimeo", "facebook.com": "Facebook",
-        "dailymotion.com": "Dailymotion", "twitch.tv": "Twitch",
-    }
-    for k, v in mapping.items():
+    m = {"youtube.com":"YouTube","youtu.be":"YouTube","instagram.com":"Instagram",
+         "tiktok.com":"TikTok","twitter.com":"Twitter/X","x.com":"Twitter/X",
+         "vimeo.com":"Vimeo","facebook.com":"Facebook","dailymotion.com":"Dailymotion",
+         "twitch.tv":"Twitch","reddit.com":"Reddit"}
+    for k, v in m.items():
         if k in url: return v
     return "Direct file" if is_video_url(url) else "Web embed"
 
@@ -83,7 +27,7 @@ def detect_platform(url):
 def format_duration(secs):
     if not secs: return ""
     secs = int(secs)
-    h, m, s = secs // 3600, (secs % 3600) // 60, secs % 60
+    h, m, s = secs//3600, (secs%3600)//60, secs%60
     return f"{h}:{m:02}:{s:02}" if h else f"{m}:{s:02}"
 
 
@@ -94,7 +38,8 @@ def extract(page_url):
         if not url or len(url) < 10: return
         url = urljoin(page_url, url)
         if url not in found:
-            found[url] = {"url": url, "title": title or url.split("/")[-1] or "Video",
+            found[url] = {"url": url,
+                          "title": title or url.split("/")[-1] or "Video",
                           "source": source, "platform": detect_platform(url),
                           "thumb": thumb, "duration": duration}
 
@@ -105,9 +50,9 @@ def extract(page_url):
         resp = requests.get(page_url, headers=headers, timeout=15)
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        for tag in soup.find_all(["video", "source"]):
+        for tag in soup.find_all(["video","source"]):
             src = tag.get("src") or tag.get("data-src") or tag.get("data-url")
-            if src: add(src, source="<video>", thumb=tag.get("poster", ""))
+            if src: add(src, source="<video>", thumb=tag.get("poster",""))
 
         for a in soup.find_all("a", href=True):
             if is_video_url(a["href"]): add(a["href"], title=a.get_text(strip=True), source="<a>")
@@ -115,49 +60,40 @@ def extract(page_url):
         for meta in soup.find_all("meta"):
             prop = (meta.get("property") or meta.get("name") or "").lower()
             if "video" in prop:
-                c = meta.get("content", "")
+                c = meta.get("content","")
                 if c.startswith("http"): add(c, source="og:meta")
 
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 data = json.loads(script.string or "{}")
                 if isinstance(data, list): data = data[0]
-                for key in ("contentUrl", "embedUrl", "url"):
-                    v = data.get(key, "")
+                for key in ("contentUrl","embedUrl","url"):
+                    v = data.get(key,"")
                     if v and ("video" in v or is_video_url(v)):
-                        add(v, title=data.get("name", ""), source="JSON-LD",
-                            thumb=data.get("thumbnailUrl", ""), duration=data.get("duration", ""))
+                        add(v, title=data.get("name",""), source="JSON-LD",
+                            thumb=data.get("thumbnailUrl",""), duration=data.get("duration",""))
             except Exception: pass
 
         for tag in soup.find_all(True):
             for attr, val in tag.attrs.items():
                 if isinstance(val, str) and "video" in attr.lower() and val.startswith("http"):
-                    if is_video_url(val) or "video" in val: add(val, source=f"data-attr")
+                    if is_video_url(val) or "video" in val: add(val, source="data-attr")
 
         for iframe in soup.find_all("iframe"):
-            src = iframe.get("src") or iframe.get("data-src", "")
+            src = iframe.get("src") or iframe.get("data-src","")
             if src: iframe_urls.append(urljoin(page_url, src))
 
     except Exception as e:
-        print(f"[scan] scrape error: {e}")
+        print(f"[scan] error: {e}")
 
-    # yt-dlp — opsi khusus untuk Vercel serverless
     if yt_dlp:
-        null_logger = type("L", (), {
-            "debug": lambda s,m: None, "info": lambda s,m: None,
-            "warning": lambda s,m: None, "error": lambda s,m: None,
-        })()
-        ydl_opts = {
-            "quiet": True, "no_warnings": True,
-            "extract_flat": "in_playlist", "skip_download": True,
-            "noplaylist": False, "ignoreerrors": True, "logger": null_logger,
-            "nocheckcertificate": True,
-            "socket_timeout": 8,
-            "retries": 2,
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            },
-        }
+        null_log = type("L",(),{"debug":lambda s,m:None,"info":lambda s,m:None,
+                                 "warning":lambda s,m:None,"error":lambda s,m:None})()
+        ydl_opts = {"quiet":True,"no_warnings":True,"extract_flat":"in_playlist",
+                    "skip_download":True,"noplaylist":False,"ignoreerrors":True,
+                    "logger":null_log,"nocheckcertificate":True,
+                    "socket_timeout":8,"retries":2,
+                    "http_headers":{"User-Agent": headers["User-Agent"]}}
         for target in [page_url] + iframe_urls:
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -165,10 +101,10 @@ def extract(page_url):
                     if not info: continue
                     for entry in (info.get("entries") or [info]):
                         if not entry: continue
-                        url = entry.get("url") or entry.get("webpage_url", "")
+                        url = entry.get("url") or entry.get("webpage_url","")
                         if url and url not in found:
-                            add(url, title=entry.get("title", ""), source="yt-dlp",
-                                thumb=entry.get("thumbnail", ""),
+                            add(url, title=entry.get("title",""), source="yt-dlp",
+                                thumb=entry.get("thumbnail",""),
                                 duration=format_duration(entry.get("duration")))
             except Exception: pass
 
@@ -178,17 +114,13 @@ def extract(page_url):
 class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
-        if not guard(self): return
         length = int(self.headers.get("Content-Length", 0))
         body   = json.loads(self.rfile.read(length) or b"{}")
-        url    = body.get("url", "").strip()
-
+        url    = body.get("url","").strip()
         if not url:
             return self.send_json({"error": "URL required"}, 400)
-
         try:
-            videos = extract(url)
-            self.send_json({"videos": videos, "count": len(videos)})
+            self.send_json({"videos": extract(url), "count": len(extract(url))})
         except Exception as e:
             self.send_json({"error": str(e)}, 500)
 

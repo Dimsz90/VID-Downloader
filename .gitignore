@@ -40,3 +40,7 @@ desktop.ini
 # Temp files
 *.tmp
 *.log
+
+dev.py
+
+test.py

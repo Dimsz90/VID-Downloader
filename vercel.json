@@ -1,60 +1,30 @@
 {
   "version": 2,
-  "functions": {
-    "api/token.py": {
-      "maxDuration": 10
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
     },
-    "api/get-video.py": {
-      "maxDuration": 15
+    {
+      "src": "*.html",
+      "use": "@vercel/static"
     },
-    "api/scan.py": {
-      "maxDuration": 30
-    },
-    "api/formats.py": {
-      "maxDuration": 15
-    },
-    "api/download.py": {
-      "maxDuration": 60
-    },
-    "api/debug.py": {
-      "maxDuration": 30
-    },
-    "api/imdb.py": {
-      "maxDuration": 20
+    {
+      "src": "css/*.css",
+      "use": "@vercel/static"
     }
-  },
+  ],
   "routes": [
     {
-      "src": "/api/debug",
-      "dest": "/api/debug.py"
-    },
-    {
-      "src": "/api/token",
-      "dest": "/api/token.py"
-    },
-    {
-      "src": "/api/get-video",
-      "dest": "/api/get-video.py"
-    },
-    {
-      "src": "/api/scan",
-      "dest": "/api/scan.py"
-    },
-    {
-      "src": "/api/formats",
-      "dest": "/api/formats.py"
-    },
-    {
-      "src": "/api/download",
-      "dest": "/api/download.py"
-    },
-    {
-      "src": "/api/imdb",
-      "dest": "/api/imdb.py"
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
     },
     {
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "PYTHON_VERSION": "3.9"
+  }
 }
