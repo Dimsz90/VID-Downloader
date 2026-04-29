@@ -841,6 +841,7 @@ async function startStream() {
 
   const id    = selectedItem["#IMDB_ID"] || "";
   const title = selectedItem["#TITLE"]   || "Film";
+  const type  = (selectedItem["#RANK"] || "").includes("Series") ? "tv" : "movie";
   if (!id) return;
 
   // Set subtitle context
@@ -856,16 +857,22 @@ async function startStream() {
     `${title}${selectedItem["#YEAR"] ? " (" + selectedItem["#YEAR"] + ")" : ""}`;
 
   try {
-    const res  = await apiFetch(`${STREAM_API}/api/imdb?id=${id}&action=stream`);
-    const data = await res.json();
+    // Panggil streaming API langsung dari browser (CORS *)
+    // Ini menghindari blokir IP datacenter Vercel
+    const streamRes = await fetch(
+      `https://streamdata.vaplayer.ru/api.php?imdb=${id}&type=${type}`
+    );
+    const streamData = await streamRes.json();
+    const streams = (streamData.data || {}).stream_urls || [];
 
-    if (data.stream_url) {
-      playHls(data.stream_url);
+    if (streams.length > 0) {
+      const streamUrl = streams[0].replace(/\\\//g, "/");
+      playHls(streamUrl);
     } else {
       showPError("Stream tidak tersedia untuk film ini.");
     }
   } catch(e) {
-    showPError("Gagal menghubungi server. Coba lagi nanti.");
+    showPError("Gagal mengambil stream. Coba lagi nanti.");
   }
 }
 
