@@ -341,6 +341,21 @@ nav{
 .sub-status-dot.active{background:#3dffa0}
 .pbtn.active{border-color:var(--accent);color:var(--accent)}
 
+/* ── FLOATING SUBTITLE OVERLAY (untuk iframe mode) ── */
+#subOverlay{
+  position:absolute;bottom:60px;left:50%;transform:translateX(-50%);
+  z-index:215;pointer-events:none;
+  max-width:80vw;text-align:center;
+  font-family:var(--body);font-size:clamp(16px, 2.5vw, 22px);
+  color:#fff;line-height:1.5;
+  text-shadow:1px 1px 3px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.7);
+  display:none;
+}
+#subOverlay span{
+  background:rgba(0,0,0,.7);padding:2px 10px;border-radius:4px;
+  display:inline;box-decoration-break:clone;-webkit-box-decoration-break:clone;
+}
+
 @media(max-width:480px){
   .movie-grid{grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:9px}
   .sheet-inner{flex-direction:column}
@@ -462,6 +477,9 @@ nav{
     allow="autoplay; fullscreen; picture-in-picture"
     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
   </iframe>
+
+  <!-- Floating subtitle overlay (untuk iframe mode) -->
+  <div id="subOverlay"></div>
 
   <!-- Subtitle panel -->
   <div class="sub-panel" id="subPanelBrowse">
@@ -1079,6 +1097,9 @@ async function loadSubtitle(fileId, idx) {
     const srt = await r.text();
     if (!srt || srt.trim().length < 10) throw new Error("File subtitle kosong");
 
+    // Parse cues for floating overlay (iframe mode)
+    _subCues = parseSrt(srt);
+
     const vtt     = srtToVtt(srt);
     const blob    = new Blob([vtt], { type: "text/vtt" });
     const blobUrl = URL.createObjectURL(blob);
@@ -1101,8 +1122,21 @@ async function loadSubtitle(fileId, idx) {
   }
 }
 
-/** Inject VTT track to video element */
+/* ═══════════════════════════════════════
+   SUBTITLE RENDERING (dual-mode)
+═══════════════════════════════════════ */
+let _subCues = [];        // parsed SRT cues
+let _subTimer = null;     // interval for iframe mode
+let _subStartTime = 0;    // timestamp when playback started
+const _isIframeMode = () => document.getElementById("playerFrame").style.display === "block";
+
+/** Inject VTT track to video element (native mode) */
 function applyVttToVideo(vttUrl, lang) {
+  if (_isIframeMode()) {
+    // Iframe mode → use floating overlay
+    startSubOverlay();
+    return;
+  }
   const video = document.getElementById("mainVideo");
   Array.from(video.querySelectorAll("track")).forEach(t => t.remove());
   const track = document.createElement("track");
@@ -1117,11 +1151,55 @@ function applyVttToVideo(vttUrl, lang) {
   }, 100);
 }
 
+/** Parse SRT string into cue objects [{start, end, text}] */
+function parseSrt(srt) {
+  const blocks = srt.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim().split(/\n\n+/);
+  return blocks.map(block => {
+    const lines = block.split("\n");
+    const timeMatch = lines.find(l => l.includes("-->"));
+    if (!timeMatch) return null;
+    const [sTime, eTime] = timeMatch.split("-->").map(s => {
+      const p = s.trim().replace(",", ".").split(":");
+      return (+p[0]) * 3600 + (+p[1]) * 60 + parseFloat(p[2]);
+    });
+    const textLines = lines.slice(lines.indexOf(timeMatch) + 1);
+    const text = textLines.join("\n").replace(/<[^>]+>/g, "").trim();
+    return text ? { start: sTime, end: eTime, text } : null;
+  }).filter(Boolean);
+}
+
+/** Start floating subtitle overlay (iframe mode) */
+function startSubOverlay() {
+  stopSubOverlay();
+  const overlay = document.getElementById("subOverlay");
+  if (!overlay || _subCues.length === 0) return;
+  overlay.style.display = "block";
+  _subStartTime = Date.now() / 1000;
+
+  _subTimer = setInterval(() => {
+    const now = Date.now() / 1000 - _subStartTime;
+    const cue = _subCues.find(c => now >= c.start && now < c.end);
+    overlay.innerHTML = cue ? `<span>${cue.text.replace(/\n/g, '<br>')}</span>` : "";
+  }, 200);
+}
+
+/** Stop floating subtitle overlay */
+function stopSubOverlay() {
+  if (_subTimer) { clearInterval(_subTimer); _subTimer = null; }
+  const overlay = document.getElementById("subOverlay");
+  if (overlay) { overlay.innerHTML = ""; overlay.style.display = "none"; }
+}
+
 /** Disable subtitle */
 function disableSubtitle() {
+  // Native video track
   const video = document.getElementById("mainVideo");
   Array.from(video.querySelectorAll("track")).forEach(t => t.remove());
   if (video.textTracks.length > 0) video.textTracks[0].mode = "disabled";
+
+  // Floating overlay
+  stopSubOverlay();
+  _subCues = [];
 
   SUB.activeFileId = null;
   document.querySelectorAll("#subList .sub-item")
