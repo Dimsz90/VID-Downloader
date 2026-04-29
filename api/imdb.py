@@ -128,18 +128,9 @@ class handler(BaseHTTPRequestHandler):
             if not target_url:
                 return self.send_error(400)
             try:
-                # Dynamically spoof Origin/Referer to match target domain
-                from urllib.parse import urlparse as _up
-                parsed_target = _up(target_url)
-                target_origin = f"{parsed_target.scheme}://{parsed_target.netloc}"
-                proxy_headers = {
-                    **VIDEO_SPOOF_HEADERS,
-                    "Origin":  target_origin,
-                    "Referer": target_origin + "/",
-                }
                 resp = requests.get(
                     target_url,
-                    headers=proxy_headers,
+                    headers=VIDEO_SPOOF_HEADERS,
                     stream=True,
                     timeout=15,
                 )
