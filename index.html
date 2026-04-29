@@ -837,18 +837,20 @@ async function startStream() {
   document.getElementById("playerTitle").textContent =
     `${title}${selectedItem["#YEAR"] ? " (" + selectedItem["#YEAR"] + ")" : ""}`;
 
+  const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+
   try {
     const res  = await apiFetch(`${STREAM_API}/api/imdb?id=${id}&action=stream`);
     const data = await res.json();
 
-    if (data.stream_url) {
+    if (isLocal && data.stream_url) {
+      // Proxy streaming hanya bisa dari localhost (IP residensial)
       playHls(data.stream_url);
     } else {
-      /* fallback embed */
+      // Production → langsung embed (CDN video blokir IP datacenter)
       loadFrame(data.embed_url || `https://vidsrc.to/embed/movie/${id}`);
     }
   } catch(e) {
-    /* backend tidak terjangkau → langsung embed */
     loadFrame(`https://vidsrc.to/embed/movie/${id}`);
   }
 }
