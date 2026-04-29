@@ -217,7 +217,11 @@ def proxy():
         return "Missing url param", 400
 
     try:
-        resp = req.get(target_url, headers=VIDEO_SPOOF_HEADERS, stream=True, timeout=15)
+        from urllib.parse import urlparse as _up
+        parsed_t = _up(target_url)
+        t_origin = f"{parsed_t.scheme}://{parsed_t.netloc}"
+        proxy_headers = {**VIDEO_SPOOF_HEADERS, "Origin": t_origin, "Referer": t_origin + "/"}
+        resp = req.get(target_url, headers=proxy_headers, stream=True, timeout=15)
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
 
         if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
