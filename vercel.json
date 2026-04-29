@@ -5,10 +5,7 @@
       "src": "api/index.py",
       "use": "@vercel/python"
     },
-    {
-      "src": "api/lib/**/*.py",
-      "use": "@vercel/python"
-    },
+
     {
       "src": "*.html",
       "use": "@vercel/static"
