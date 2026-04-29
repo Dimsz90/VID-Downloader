@@ -2,8 +2,13 @@
 Local dev server — python dev.py → http://localhost:3000
 """
 import importlib.util, os, sys, re, tempfile, mimetypes
+from urllib.parse import quote
 from flask import Flask, send_file, request, jsonify, Response
 from flask_cors import CORS
+
+# Tambah api/ ke path agar bisa import lib.*
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
+from lib.auth import generate_token, validate_token
 
 app = Flask(__name__)
 CORS(app)
@@ -16,6 +21,28 @@ def load(path):
     return mod
 
 
+# ── Token Validation Middleware ───────────────────────────────────────────────
+
+SKIP_AUTH = {"/", "/favicon.ico", "/api/token", "/api/debug"}
+
+@app.before_request
+def check_token():
+    """Validasi token untuk semua /api/* kecuali /api/token dan /api/debug."""
+    path = request.path
+
+    # Skip non-API dan route publik
+    if path in SKIP_AUTH or not path.startswith("/api/"):
+        return None
+
+    # Skip jika serving static files
+    if not path.startswith("/api/"):
+        return None
+
+    token = request.headers.get("x-api-token", "")
+    if not validate_token(token):
+        return jsonify({"error": "Token tidak valid atau kedaluwarsa"}), 401
+
+
 # ── Static ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -26,17 +53,18 @@ def index():
 def favicon():
     return "", 204
 
+@app.route("/<path:filename>")
+def static_files(filename):
+    if os.path.exists(filename):
+        return send_file(filename)
+    return "404 Not Found", 404
+
 
 # ── /api/token ────────────────────────────────────────────────────────────────
 
 @app.route("/api/token")
 def token():
-    import time, hashlib, hmac, os
-    secret     = os.environ.get("API_SECRET","changeme")
-    now_min    = int(time.time()//60)
-    tok        = hmac.new(secret.encode(), str(now_min).encode(), hashlib.sha256).hexdigest()
-    expires_in = 60 - (int(time.time())%60)
-    return jsonify({"token": tok, "expires_in": expires_in})
+    return jsonify(generate_token())
 
 
 # ── /api/debug ────────────────────────────────────────────────────────────────
@@ -44,10 +72,10 @@ def token():
 @app.route("/api/debug")
 def debug():
     results = {"python": sys.version, "env": "local"}
-    for pkg in ["requests","bs4","yt_dlp","playwright"]:
+    for pkg in ["requests", "bs4", "yt_dlp", "playwright"]:
         try:
             mod = __import__(pkg)
-            results[pkg] = f"OK ({getattr(mod,'__version__','?')})"
+            results[pkg] = f"OK ({getattr(mod, '__version__', '?')})"
         except ImportError as e:
             results[pkg] = f"MISSING: {e}"
     return jsonify(results)
@@ -57,17 +85,17 @@ def debug():
 
 @app.route("/api/get-video")
 def get_video():
-    video_id = request.args.get("id","").strip()
+    video_id = request.args.get("id", "").strip()
     if not video_id:
-        return jsonify({"status":"error","message":"ID kosong"}), 400
+        return jsonify({"status": "error", "message": "ID kosong"}), 400
     if "/" in video_id:
         video_id = video_id.strip("/").split("/")[-1].split("?")[0]
-    mod  = load("api/get-video.py")
-    inst = mod.handler.__new__(mod.handler)
-    url  = inst._extract(video_id)
+
+    from lib import vidgf
+    url = vidgf.extract(video_id)
     if url:
-        return jsonify({"status":"success","link":url,"id":video_id})
-    return jsonify({"status":"error","message":"Tidak ditemukan"}), 404
+        return jsonify({"status": "success", "link": url, "id": video_id})
+    return jsonify({"status": "error", "message": "Tidak ditemukan"}), 404
 
 
 # ── /api/scan ─────────────────────────────────────────────────────────────────
@@ -75,12 +103,12 @@ def get_video():
 @app.route("/api/scan", methods=["POST"])
 def scan():
     data = request.get_json() or {}
-    url  = data.get("url","").strip()
+    url  = data.get("url", "").strip()
     if not url:
-        return jsonify({"error":"URL required"}), 400
+        return jsonify({"error": "URL required"}), 400
     mod    = load("api/scan.py")
     videos = mod.extract(url)
-    return jsonify({"videos":videos,"count":len(videos)})
+    return jsonify({"videos": videos, "count": len(videos)})
 
 
 # ── /api/formats ──────────────────────────────────────────────────────────────
@@ -88,12 +116,12 @@ def scan():
 @app.route("/api/formats", methods=["POST"])
 def formats():
     data = request.get_json() or {}
-    url  = data.get("url","").strip()
+    url  = data.get("url", "").strip()
     if not url:
-        return jsonify({"error":"URL required"}), 400
-    mod            = load("api/formats.py")
-    title,thumb,fmts = mod.get_formats(url)
-    return jsonify({"title":title,"thumb":thumb,"formats":fmts})
+        return jsonify({"error": "URL required"}), 400
+    mod                = load("api/formats.py")
+    title, thumb, fmts = mod.get_formats(url)
+    return jsonify({"title": title, "thumb": thumb, "formats": fmts})
 
 
 # ── /api/download ─────────────────────────────────────────────────────────────
@@ -101,32 +129,35 @@ def formats():
 @app.route("/api/download", methods=["POST"])
 def download():
     data      = request.get_json() or {}
-    url       = data.get("url","").strip()
-    format_id = data.get("format_id","bestvideo+bestaudio/best")
-    title     = data.get("title","video")
+    url       = data.get("url", "").strip()
+    format_id = data.get("format_id", "bestvideo+bestaudio/best")
+    title     = data.get("title", "video")
     if not url:
-        return jsonify({"error":"URL required"}), 400
+        return jsonify({"error": "URL required"}), 400
     try:
         import yt_dlp
     except ImportError:
-        return jsonify({"error":"yt-dlp tidak terinstall"}), 500
+        return jsonify({"error": "yt-dlp tidak terinstall"}), 500
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        opts = {"format":format_id,
-                "outtmpl":os.path.join(tmpdir,"%(title)s.%(ext)s"),
-                "quiet":True,"merge_output_format":"mp4"}
+        opts = {
+            "format": format_id,
+            "outtmpl": os.path.join(tmpdir, "%(title)s.%(ext)s"),
+            "quiet": True,
+            "merge_output_format": "mp4",
+        }
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 ydl.download([url])
             files = os.listdir(tmpdir)
             if not files:
-                return jsonify({"error":"Download gagal"}), 500
-            filepath = os.path.join(tmpdir, files[0])
-            ext      = os.path.splitext(files[0])[1]
-            safe     = re.sub(r'[^\w\s-]','',title)[:60].strip() or "video"
-            fname    = f"{safe}{ext}"
-            mime     = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
-            with open(filepath,"rb") as f:
+                return jsonify({"error": "Download gagal"}), 500
+            filepath   = os.path.join(tmpdir, files[0])
+            ext        = os.path.splitext(files[0])[1]
+            safe       = re.sub(r'[^\w\s-]', '', title)[:60].strip() or "video"
+            fname      = f"{safe}{ext}"
+            mime       = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
+            with open(filepath, "rb") as f:
                 data_bytes = f.read()
             return Response(data_bytes, headers={
                 "Content-Type":        mime,
@@ -134,41 +165,178 @@ def download():
                 "Content-Length":      str(len(data_bytes)),
             })
         except Exception as e:
-            return jsonify({"error":str(e)}), 500
+            return jsonify({"error": str(e)}), 500
 
 
 # ── /api/imdb ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/imdb")
 def imdb():
-    raw_id = request.args.get("id","").strip()
-    action = request.args.get("action","info").strip()
+    raw_id = request.args.get("id", "").strip()
+    action = request.args.get("action", "info").strip()
+
     if not raw_id:
-        return jsonify({"error":"Parameter ?id= diperlukan"}), 400
-    mod     = load("api/imdb.py")
+        return jsonify({"error": "Parameter ?id= diperlukan"}), 400
+
+    mod = load("api/imdb.py")
+
     imdb_id = mod.extract_imdb_id(raw_id)
     if not imdb_id:
-        return jsonify({"error":f"IMDB ID tidak valid: {raw_id}"}), 400
+        return jsonify({"error": f"IMDB ID tidak valid: {raw_id}"}), 400
+
     try:
         info = mod.get_movie_info(imdb_id)
+
         if action == "stream":
-            media_type         = "tv" if info.get("type") == "series" else "movie"
-            info["stream_url"] = mod.extract_stream_url(imdb_id, media_type)
-        return jsonify({"status":"success",**info})
+            media_type = "tv" if info.get("type") == "series" else "movie"
+            raw_url    = mod.get_fast_stream(imdb_id, media_type)
+            if raw_url:
+                info["stream_url"] = f"/api/proxy?url={quote(raw_url)}"
+            else:
+                info["stream_url"] = None
+            info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
+
+        return jsonify({"status": "success", **info})
+
     except Exception as e:
-        return jsonify({"error":str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ── /api/proxy ────────────────────────────────────────────────────────────────
+
+@app.route("/api/proxy")
+def proxy():
+    from urllib.parse import urljoin
+    import requests as req
+    from lib.config import VIDEO_SPOOF_HEADERS
+
+    target_url = request.args.get("url", "").strip()
+    if not target_url:
+        return "Missing url param", 400
+
+    try:
+        resp = req.get(target_url, headers=VIDEO_SPOOF_HEADERS, stream=True, timeout=15)
+        content_type = resp.headers.get("Content-Type", "application/octet-stream")
+
+        if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
+            content = resp.text
+
+            def rewrite(m):
+                abs_link = urljoin(target_url, m.group(1))
+                return f"/api/proxy?url={quote(abs_link)}"
+
+            new_content = re.sub(r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE)
+            return Response(
+                new_content.encode(),
+                status=resp.status_code,
+                headers={
+                    "Content-Type":                content_type,
+                    "Access-Control-Allow-Origin": "*",
+                },
+            )
+
+        def generate():
+            for chunk in resp.iter_content(chunk_size=65536):
+                yield chunk
+
+        return Response(
+            generate(),
+            status=resp.status_code,
+            headers={
+                "Content-Type":                content_type,
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── /api/subtitle/search ──────────────────────────────────────────────────────
+
+@app.route("/api/subtitle/search")
+def subtitle_search():
+    imdb_id    = request.args.get("imdb_id", "").strip() or None
+    query      = request.args.get("query",   "").strip() or None
+    lang       = request.args.get("lang",    "en").strip()
+    media_type = request.args.get("type",    "movie").strip()
+
+    if not imdb_id and not query:
+        return jsonify({"status": "error", "error": "imdb_id atau query wajib diisi"}), 400
+
+    sub = load("api/subtitle.py")
+    result = sub.search(
+        imdb_id    = imdb_id,
+        query      = query,
+        lang       = lang,
+        media_type = media_type,
+    )
+
+    status_code = 200 if result["status"] == "success" else 503
+    return jsonify(result), status_code
+
+
+# ── /api/subtitle/download ────────────────────────────────────────────────────
+
+@app.route("/api/subtitle/download")
+def subtitle_download():
+    file_id = request.args.get("file_id", "").strip()
+    if not file_id:
+        return jsonify({"error": "file_id wajib diisi"}), 400
+
+    sub = load("api/subtitle.py")
+
+    # 1. Minta URL download dari OpenSubtitles
+    dl_url, err = sub.get_download_url(file_id)
+    if err:
+        return jsonify({"error": err}), 500
+
+    # 2. Download konten .srt dan proxy ke frontend
+    srt_text, err = sub.fetch_srt(dl_url)
+    if err:
+        return jsonify({"error": err}), 500
+
+    return Response(
+        srt_text.encode("utf-8"),
+        status=200,
+        headers={
+            "Content-Type":                "text/plain; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    missing = [f for f in ["index.html","api/get-video.py","api/scan.py",
-                            "api/formats.py","api/download.py","api/imdb.py"]
-               if not os.path.exists(f)]
+    required = [
+        "index.html",
+        "api/get-video.py",
+        "api/imdb.py",
+        "api/subtitle.py",
+    ]
+    optional = [
+        "api/scan.py",
+        "api/formats.py",
+        "api/download.py",
+        "browse.html",
+    ]
+
+    missing = [f for f in required if not os.path.exists(f)]
     if missing:
-        print("❌ File tidak ada:")
-        for f in missing: print(f"   {f}")
+        print("[ERROR] File wajib tidak ada:")
+        for f in missing:
+            print(f"        {f}")
         sys.exit(1)
 
-    print("\n🚀  http://localhost:3000\n")
+    warn = [f for f in optional if not os.path.exists(f)]
+    if warn:
+        print("[WARN]  File opsional tidak ditemukan:")
+        for f in warn:
+            print(f"        {f}")
+
+    print("\n>>> http://localhost:3000")
+    print(">>> http://localhost:3000/browse.html\n")
     app.run(host="0.0.0.0", port=3000, debug=True)

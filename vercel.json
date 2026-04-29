@@ -6,11 +6,23 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/lib/**/*.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "*.html",
       "use": "@vercel/static"
     },
     {
-      "src": "css/*.css",
+      "src": "manifest.json",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "sw.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "icons/*.png",
       "use": "@vercel/static"
     }
   ],
@@ -18,6 +30,18 @@
     {
       "src": "/api/(.*)",
       "dest": "api/index.py"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/sw.js",
+      "dest": "/sw.js"
+    },
+    {
+      "src": "/browse.html",
+      "dest": "/browse.html"
     },
     {
       "src": "/(.*)",

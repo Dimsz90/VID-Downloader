@@ -1,6 +1,13 @@
+"""
+api/get-video.py
+Vidgf video extractor — menggunakan shared lib.
+"""
 from http.server import BaseHTTPRequestHandler
-import requests, re, json, base64
+import json, os, sys
 from urllib.parse import urlparse, parse_qs
+
+sys.path.insert(0, os.path.dirname(__file__))
+from lib import vidgf
 
 
 class handler(BaseHTTPRequestHandler):
@@ -15,71 +22,11 @@ class handler(BaseHTTPRequestHandler):
         if "/" in video_id:
             video_id = video_id.strip("/").split("/")[-1].split("?")[0]
 
-        url = self._extract(video_id)
+        url = vidgf.extract(video_id)
         if url:
             self.send_json({"status": "success", "link": url, "id": video_id})
         else:
             self.send_json({"status": "error", "message": "Link tidak ditemukan"}, 404)
-
-    def _extract(self, video_id):
-        endpoints = [
-            f"https://vidgf.com/embed.php?id={video_id}",
-            f"https://vidgf.com/d/{video_id}",
-        ]
-        referers = ["https://simemek.com/", "https://montok.live/", "https://vidgf.com/"]
-        base_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
-            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8",
-        }
-        for endpoint in endpoints:
-            for referer in referers:
-                try:
-                    r = requests.get(endpoint, headers={
-                        **base_headers,
-                        "Referer": referer,
-                        "Origin":  referer.rstrip("/"),
-                    }, timeout=10)
-                    if r.status_code != 200 or len(r.text) < 50:
-                        continue
-                    url = self._parse(r.text)
-                    if url:
-                        return url
-                except Exception:
-                    continue
-        return None
-
-    def _parse(self, content):
-        # 1. URL mp4/m3u8 langsung
-        m = re.search(r'(https?://[^\s"\'<>\\]+?\.(?:mp4|m3u8|webm)(?:\?[^\s"\'<>\\]*)?)', content, re.I)
-        if m: return m.group(1).replace("\\/", "/")
-
-        # 2. Variabel JS
-        m = re.search(r'(?:file|src|url|source|stream|hls)\s*[:=]\s*["\']([^"\']{15,})["\']', content, re.I)
-        if m:
-            u = m.group(1).replace("\\/", "/")
-            if u.startswith("//"): u = "https:" + u
-            if u.startswith("http"): return u
-
-        # 3. JSON sources
-        m = re.search(r'sources\s*[:=]\s*(\[.*?\])', content, re.DOTALL | re.I)
-        if m:
-            try:
-                for s in json.loads(m.group(1)):
-                    u = s.get("file") or s.get("src") or s.get("url") or ""
-                    if u.startswith("http"): return u.replace("\\/", "/")
-            except Exception:
-                pass
-
-        # 4. Base64
-        for b64 in re.findall(r'["\']([A-Za-z0-9+/]{30,}={0,2})["\']', content):
-            try:
-                d = base64.b64decode(b64 + "==").decode("utf-8", errors="ignore")
-                if any(e in d for e in [".mp4", ".m3u8", ".webm"]) or re.match(r'https?://', d):
-                    return d.strip()
-            except Exception:
-                continue
-        return None
 
     def do_OPTIONS(self):
         self.send_response(204)

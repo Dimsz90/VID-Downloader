@@ -1,14 +1,17 @@
+"""
+api/token.py
+Token generation — menggunakan shared auth dari lib.
+"""
 from http.server import BaseHTTPRequestHandler
-import json, time, os, hashlib, hmac
+import json, os, sys
 
-API_SECRET = os.environ.get("API_SECRET", "changeme")
+sys.path.insert(0, os.path.dirname(__file__))
+from lib.auth import generate_token
+
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        now_min    = int(time.time() // 60)
-        token      = hmac.new(API_SECRET.encode(), str(now_min).encode(), hashlib.sha256).hexdigest()
-        expires_in = 60 - (int(time.time()) % 60)
-        self.send_json({"token": token, "expires_in": expires_in})
+        self.send_json(generate_token())
 
     def do_OPTIONS(self):
         self.send_response(204)

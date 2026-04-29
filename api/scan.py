@@ -120,7 +120,8 @@ class handler(BaseHTTPRequestHandler):
         if not url:
             return self.send_json({"error": "URL required"}, 400)
         try:
-            self.send_json({"videos": extract(url), "count": len(extract(url))})
+            videos = extract(url)
+            self.send_json({"videos": videos, "count": len(videos)})
         except Exception as e:
             self.send_json({"error": str(e)}, 500)
 
