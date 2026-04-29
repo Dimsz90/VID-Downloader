@@ -841,7 +841,8 @@ async function startStream() {
 
   const id    = selectedItem["#IMDB_ID"] || "";
   const title = selectedItem["#TITLE"]   || "Film";
-  const type  = (selectedItem["#RANK"] || "").includes("Series") ? "tv" : "movie";
+  const rawType = (selectedItem["#TYPE"] || "").toLowerCase();
+  const type  = rawType.includes("series") || rawType.includes("episode") ? "tv" : "movie";
   if (!id) return;
 
   // Set subtitle context
