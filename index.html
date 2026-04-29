@@ -856,27 +856,44 @@ async function startStream() {
 /* ── HLS Player ── */
 function playHls(proxyUrl) {
   const v = document.getElementById("mainVideo");
+  const imdbId = selectedItem["#IMDB_ID"] || "";
   if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
 
+  // Timeout fallback — jika HLS tidak load dalam 8 detik, pakai embed
+  const hlsTimeout = setTimeout(() => {
+    if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
+    loadFrame(`https://vidsrc.to/embed/movie/${imdbId}`);
+  }, 8000);
+
   if (Hls.isSupported()) {
-    hlsInst = new Hls({ maxBufferLength: 30 });
+    hlsInst = new Hls({ maxBufferLength: 30, manifestLoadingTimeOut: 6000, levelLoadingTimeOut: 6000 });
     hlsInst.loadSource(proxyUrl);
     hlsInst.attachMedia(v);
     hlsInst.on(Hls.Events.MANIFEST_PARSED, () => {
+      clearTimeout(hlsTimeout);
       hidePOverlays();
       v.style.display = "block";
       v.play().catch(() => {});
     });
     hlsInst.on(Hls.Events.ERROR, (e, d) => {
-      if (d.fatal) loadFrame(`https://vidsrc.to/embed/movie/${selectedItem["#IMDB_ID"] || ""}`);
+      if (d.fatal || d.response?.code === 403 || d.response?.code === 502) {
+        clearTimeout(hlsTimeout);
+        if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
+        loadFrame(`https://vidsrc.to/embed/movie/${imdbId}`);
+      }
     });
   } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+    clearTimeout(hlsTimeout);
     v.src = proxyUrl;
     v.addEventListener("loadedmetadata", () => {
       hidePOverlays(); v.style.display = "block"; v.play().catch(() => {});
     }, { once: true });
+    v.addEventListener("error", () => {
+      loadFrame(`https://vidsrc.to/embed/movie/${imdbId}`);
+    }, { once: true });
   } else {
-    loadFrame(`https://vidsrc.to/embed/movie/${selectedItem["#IMDB_ID"] || ""}`);
+    clearTimeout(hlsTimeout);
+    loadFrame(`https://vidsrc.to/embed/movie/${imdbId}`);
   }
 }
 
