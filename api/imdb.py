@@ -115,9 +115,9 @@ class handler(BaseHTTPRequestHandler):
             if action == "stream":
                 m_type  = "tv" if info.get("type") == "series" else "movie"
                 raw_url = get_fast_stream(imdb_id, m_type)
-                info["stream_url"] = (
-                    f"/api/proxy?url={quote(raw_url)}" if raw_url else None
-                )
+                # CDN punya CORS *, jadi browser bisa fetch langsung
+                # tanpa proxy (menghindari blokir IP datacenter)
+                info["stream_url"] = raw_url
                 info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
             return self.send_json({"status": "success", **info})

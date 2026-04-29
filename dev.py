@@ -190,10 +190,8 @@ def imdb():
         if action == "stream":
             media_type = "tv" if info.get("type") == "series" else "movie"
             raw_url    = mod.get_fast_stream(imdb_id, media_type)
-            if raw_url:
-                info["stream_url"] = f"/api/proxy?url={quote(raw_url)}"
-            else:
-                info["stream_url"] = None
+            # CDN punya CORS *, browser fetch langsung
+            info["stream_url"] = raw_url
             info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
         return jsonify({"status": "success", **info})
