@@ -8,7 +8,7 @@ const CACHE_NAME = "streamvault-v2.2";
 // Asset yang di-cache saat install
 const PRECACHE = [
   "/",
-  "/browse.html",
+  "/extractor.html",
   "/manifest.json",
   "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap",
   "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js",

@@ -40,8 +40,8 @@
       "dest": "/sw.js"
     },
     {
-      "src": "/browse.html",
-      "dest": "/browse.html"
+      "src": "/extractor.html",
+      "dest": "/extractor.html"
     },
     {
       "src": "/(.*)",

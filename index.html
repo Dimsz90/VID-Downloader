@@ -3,822 +3,510 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="description" content="StreamVault — Universal stream extractor & player with subtitle support.">
+<meta name="description" content="StreamVault — Browse & stream film dari IMDB.">
 <meta name="theme-color" content="#ff3c5f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<title>StreamVault</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>StreamVault – Browse Film</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
 <style>
-/* ══════════════════════════════════════════
-   DESIGN TOKENS
-══════════════════════════════════════════ */
-:root {
-  --bg:       #070709;
-  --surface:  #0f0f12;
-  --surface2: #161619;
-  --surface3: #1c1c20;
-  --border:   #1e1e24;
-  --border2:  #2a2a32;
-  --border3:  #38383f;
-  --text:     #eeeef0;
-  --text2:    #888896;
-  --text3:    #44444e;
-  --accent:   #ff3c5f;
-  --accent2:  #ff6b85;
-  --accent-dim: rgba(255,60,95,0.12);
-  --green:    #3dffa0;
-  --amber:    #ffb83d;
-  --blue:     #3d9dff;
-  --mono:     'Space Mono', monospace;
-  --display:  'Bebas Neue', sans-serif;
-  --body:     'DM Sans', sans-serif;
-  --r:        10px;
-  --r-sm:     6px;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--surface:#111;--surface2:#181818;
+  --border:#1e1e1e;--border2:#2a2a2a;
+  --text:#efefef;--text2:#888;--text3:#444;
+  --accent:#ff3c5f;--accent2:#ff6b85;
+  --mono:'Space Mono',monospace;
+  --display:'Bebas Neue',sans-serif;
+  --body:'DM Sans',sans-serif;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--body);display:flex;flex-direction:column}
+
+/* ── NAV ── */
+nav{
+  background:rgba(8,8,8,.97);
+  border-bottom:1px solid var(--border);
+  padding:0 1.2rem;height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;z-index:10;
+}
+.logo{font-family:var(--display);font-size:22px;letter-spacing:2px}
+.logo span{color:var(--accent)}
+.nav-tabs{display:flex;gap:0}
+.ntab{
+  padding:0 14px;height:52px;
+  display:flex;align-items:center;
+  font-size:11px;font-family:var(--mono);color:var(--text3);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;
+}
+.ntab:hover{color:var(--text2)}
+.ntab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── SEARCH ── */
+.search-area{padding:1rem 1.2rem .7rem;flex-shrink:0;background:var(--bg)}
+.search-row{
+  display:flex;border:1px solid var(--border2);
+  border-radius:9px;overflow:hidden;
+  background:var(--surface);transition:border-color .2s;
+}
+.search-row:focus-within{border-color:var(--accent)}
+#searchInput{
+  flex:1;background:transparent;border:none;outline:none;
+  padding:13px 16px;font-size:13px;
+  font-family:var(--mono);color:var(--text);min-width:0;
+}
+#searchInput::placeholder{color:var(--text3)}
+.btn-search{
+  background:var(--accent);color:#fff;border:none;
+  padding:13px 22px;font-family:var(--display);
+  font-size:16px;letter-spacing:1px;cursor:pointer;
+  flex-shrink:0;transition:background .15s;
+}
+.btn-search:hover{background:var(--accent2)}
+.btn-search:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── STATUS ── */
+.status-bar{
+  display:none;align-items:center;gap:8px;
+  padding:.4rem 1.2rem;font-size:11px;
+  font-family:var(--mono);color:var(--text2);flex-shrink:0;
+}
+.spinner{
+  width:11px;height:11px;
+  border:2px solid var(--border2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── FILTER CHIPS ── */
+.filter-row{
+  display:flex;gap:6px;padding:.4rem 1.2rem .6rem;
+  overflow-x:auto;flex-shrink:0;scrollbar-width:none;
+}
+.filter-row::-webkit-scrollbar{display:none}
+.chip{
+  border:1px solid var(--border2);background:var(--surface);
+  color:var(--text3);border-radius:20px;padding:4px 12px;
+  font-size:10px;font-family:var(--mono);cursor:pointer;
+  white-space:nowrap;transition:all .15s;
+}
+.chip:hover{border-color:var(--text3);color:var(--text2)}
+.chip.active{border-color:var(--accent);color:var(--accent);background:rgba(255,60,95,.08)}
+
+/* ── GRID ── */
+.grid-wrap{flex:1;overflow-y:auto;padding:1rem 1.2rem 1.5rem}
+.grid-wrap::-webkit-scrollbar{width:4px}
+.grid-wrap::-webkit-scrollbar-track{background:transparent}
+.grid-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.movie-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+
+.movie-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:9px;overflow:hidden;cursor:pointer;
+  transition:all .2s;animation:fu .25s ease both;
+}
+.movie-card:hover{border-color:var(--accent);transform:translateY(-3px)}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card-poster{
+  width:100%;aspect-ratio:2/3;background:var(--surface2);
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+.card-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.no-img-icon{font-size:32px;opacity:.1}
+.card-rating{
+  position:absolute;top:5px;right:5px;
+  background:rgba(0,0,0,.85);font-family:var(--mono);
+  font-size:9px;color:#fcd34d;padding:2px 5px;border-radius:3px;
+}
+.card-type-badge{
+  position:absolute;top:5px;left:5px;
+  font-family:var(--mono);font-size:8px;color:#fff;
+  padding:2px 6px;border-radius:3px;text-transform:uppercase;
+}
+.type-movie{background:var(--accent)}
+.type-series{background:#7c3aed}
+.type-episode{background:#059669}
+.card-info{padding:7px 8px}
+.card-title{
+  font-size:10px;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;
+}
+.card-year{font-size:9px;font-family:var(--mono);color:var(--text3)}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:3.5rem 1rem;color:var(--text3);grid-column:1/-1}
+.empty h3{font-family:var(--display);font-size:26px;color:var(--text2);margin-bottom:6px}
+.empty p{font-size:11px;font-family:var(--mono);line-height:1.8}
+
+/* ── DETAIL PANEL ── */
+#detailPanel{position:fixed;inset:0;z-index:100;display:none}
+.detail-bg{position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px)}
+.detail-sheet{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--surface);border-radius:16px 16px 0 0;
+  padding:1.2rem;max-height:88vh;overflow-y:auto;
+  animation:slideup .28s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.detail-sheet::-webkit-scrollbar{width:3px}
+.detail-sheet::-webkit-scrollbar-track{background:transparent}
+.detail-sheet::-webkit-scrollbar-thumb{background:var(--border2)}
+.sheet-handle{width:34px;height:3px;background:var(--border2);border-radius:2px;margin:0 auto 1rem}
+.sheet-close{
+  position:absolute;top:1.1rem;right:1.1rem;
+  background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text2);border-radius:6px;padding:4px 10px;
+  font-size:10px;font-family:var(--mono);cursor:pointer;
+}
+.sheet-inner{display:flex;gap:1rem}
+.sheet-poster{
+  width:90px;min-width:90px;aspect-ratio:2/3;
+  border-radius:8px;background:var(--surface2);overflow:hidden;flex-shrink:0;
+}
+.sheet-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.sheet-body{flex:1;min-width:0}
+.sheet-title{font-family:var(--display);font-size:23px;letter-spacing:.5px;line-height:1.1;margin-bottom:.5rem}
+.sheet-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:.7rem}
+.badge{font-size:9px;padding:2px 7px;border-radius:20px;font-family:var(--mono)}
+.b-year{background:#1e1800;color:#fcd34d;border:1px solid #3a3000}
+.b-rating{background:#0e1e10;color:#6ee7a0;border:1px solid #1a3a20}
+.b-genre{background:#1a1030;color:#a78bfa;border:1px solid #2a1a50}
+.b-type{background:#1a0e1e;color:#f0abfc;border:1px solid #3a1a50}
+.sheet-desc{
+  font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:.9rem;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
 }
 
-*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--body);
-  min-height: 100vh;
-  overflow-x: hidden;
+/* ── PROVIDERS ── */
+.sub-label{font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:.4rem}
+.providers-wrap{margin-bottom:.8rem}
+.prov-list{display:flex;flex-wrap:wrap;gap:5px}
+.prov-chip{
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:5px;padding:3px 8px;font-size:10px;
+  font-family:var(--mono);color:var(--text2);
 }
 
-/* Grain overlay */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none; z-index: 0; opacity: 0.4;
+/* ── PHOTOS ── */
+.photos-wrap{margin-bottom:.9rem}
+.photos-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.photos-row::-webkit-scrollbar{display:none}
+.photo-thumb{
+  width:95px;min-width:95px;height:58px;
+  border-radius:5px;background:var(--surface2);overflow:hidden;
+  flex-shrink:0;border:1px solid var(--border);
 }
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
-/* Glow accent di bg */
-body::after {
-  content: '';
-  position: fixed;
-  top: -20vh; left: 50%;
-  transform: translateX(-50%);
-  width: 60vw; height: 40vh;
-  background: radial-gradient(ellipse at center, rgba(255,60,95,0.06) 0%, transparent 70%);
-  pointer-events: none; z-index: 0;
+/* ── BUTTONS ── */
+.btn-stream{
+  width:100%;background:var(--accent);color:#fff;border:none;
+  border-radius:8px;padding:13px;font-family:var(--display);
+  font-size:18px;letter-spacing:1px;cursor:pointer;
+  transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px;
 }
+.btn-stream:hover{background:var(--accent2)}
+.btn-stream:disabled{opacity:.5;cursor:not-allowed}
+.btn-imdb{
+  width:100%;background:transparent;border:1px solid var(--border2);
+  color:var(--text2);border-radius:8px;padding:9px;
+  font-family:var(--mono);font-size:11px;cursor:pointer;
+  margin-top:8px;transition:all .15s;
+}
+.btn-imdb:hover{border-color:var(--text2);color:var(--text)}
 
-/* ══════════════════════════════════════════
-   HEADER
-══════════════════════════════════════════ */
-header {
-  position: sticky; top: 0; z-index: 50;
-  background: rgba(7,7,9,0.92);
-  backdrop-filter: blur(16px) saturate(180%);
-  border-bottom: 1px solid var(--border);
-  padding: 0 2rem; height: 58px;
-  display: flex; align-items: center; justify-content: space-between;
+/* ── PLAYER FULLSCREEN ── */
+#playerMode{position:fixed;inset:0;z-index:200;background:#000;display:none}
+.player-bar{
+  position:absolute;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;z-index:210;
+  background:linear-gradient(to bottom,rgba(0,0,0,.9),transparent);
+  transition:opacity .4s;
 }
+.player-bar.faded{opacity:0;pointer-events:none}
+.player-title{
+  font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.5);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55vw;
+}
+.player-btns{display:flex;gap:6px}
+.pbtn{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+  color:#fff;border-radius:5px;padding:5px 11px;font-size:10px;
+  font-family:var(--mono);cursor:pointer;transition:background .15s;
+}
+.pbtn:hover{background:rgba(255,255,255,.2)}
+#mainVideo{
+  width:100vw;height:100vh;object-fit:contain;
+  position:absolute;top:0;left:0;z-index:201;background:#000;display:none;
+}
+#mainVideo::cue{
+  background:rgba(0,0,0,.78);color:#fff;
+  font-family:var(--body);font-size:1.05em;
+  line-height:1.5;border-radius:4px;
+}
+#playerFrame{
+  width:100vw;height:100vh;border:none;background:#000;
+  position:absolute;top:0;left:0;z-index:201;display:none;
+}
+.povl{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;
+  background:#000;z-index:205;
+}
+.povl.hidden{display:none!important}
+.big-spin{
+  width:40px;height:40px;border:3px solid #222;
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+.povl p{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.povl h3{font-family:var(--display);font-size:30px;color:var(--accent);letter-spacing:2px}
 
-.logo {
-  font-family: var(--display);
-  font-size: 26px; letter-spacing: 3px;
-  display: flex; align-items: center; gap: 0;
+/* ── SUBTITLE PANEL ── */
+.sub-panel{
+  position:absolute;bottom:70px;right:16px;
+  background:rgba(10,10,14,.95);border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:14px;width:310px;
+  z-index:215;display:none;
+  backdrop-filter:blur(14px);
+  animation:subSlide .2s ease;
 }
-.logo span { color: var(--accent); }
-.logo-dot {
-  display: inline-block;
-  width: 6px; height: 6px;
-  background: var(--accent);
-  border-radius: 50%;
-  margin: 0 6px 2px;
-  animation: pulse 2s ease-in-out infinite;
+.sub-panel.visible{display:block}
+@keyframes subSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.sub-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sub-hdr-title{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.3);letter-spacing:1.5px}
+.sub-off-btn{
+  font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.3);
+  cursor:pointer;padding:2px 8px;border:1px solid rgba(255,255,255,.1);
+  border-radius:4px;transition:all .15s;
 }
-@keyframes pulse {
-  0%,100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.4; transform: scale(0.8); }
+.sub-off-btn:hover{color:var(--accent);border-color:var(--accent)}
+.sub-lang-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.sub-lang-btn{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.55);border-radius:4px;padding:4px 10px;
+  font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s;
 }
+.sub-lang-btn:hover{border-color:rgba(255,255,255,.25);color:#fff}
+.sub-lang-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(255,60,95,.12)}
+.sub-list{max-height:220px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.sub-list::-webkit-scrollbar{width:3px}
+.sub-list::-webkit-scrollbar-track{background:transparent}
+.sub-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.sub-item{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;
+  padding:8px 10px;border-radius:7px;cursor:pointer;transition:background .15s;
+}
+.sub-item:hover{background:rgba(255,255,255,.06)}
+.sub-item.active{background:rgba(255,60,95,.12)}
+.sub-item-left{flex:1;min-width:0}
+.sub-item-name{
+  font-size:11px;font-family:var(--mono);color:rgba(255,255,255,.65);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
+}
+.sub-item.active .sub-item-name{color:var(--accent)}
+.sub-item-meta{display:flex;gap:6px;align-items:center}
+.sub-badge{font-size:9px;font-family:var(--mono);padding:1px 5px;border-radius:3px}
+.sub-badge-hi{background:rgba(61,255,160,.12);color:#3dffa0}
+.sub-badge-dl{background:rgba(255,255,255,.06);color:rgba(255,255,255,.3)}
+.sub-item-load{
+  font-size:10px;font-family:var(--mono);color:var(--accent);
+  flex-shrink:0;align-self:center;display:none;
+}
+.sub-item.loading .sub-item-load{display:block}
+.sub-item.loading .sub-item-name{opacity:.5}
+.sub-empty{
+  font-size:11px;font-family:var(--mono);color:rgba(255,255,255,.2);
+  padding:16px 10px;text-align:center;line-height:1.8;
+}
+.sub-searching{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;font-family:var(--mono);color:rgba(255,255,255,.3);padding:12px 10px;
+}
+.sub-status-bar{
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.25);
+  display:flex;align-items:center;gap:6px;
+}
+.sub-status-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;
+}
+.sub-status-dot.active{background:#3dffa0}
+.pbtn.active{border-color:var(--accent);color:var(--accent)}
 
-.header-right {
-  display: flex; align-items: center; gap: 14px;
-}
-.ver-tag {
-  font-size: 10px; color: var(--text3);
-  font-family: var(--mono);
-  border: 1px solid var(--border);
-  padding: 3px 8px; border-radius: 20px;
-}
-
-/* ══════════════════════════════════════════
-   MAIN
-══════════════════════════════════════════ */
-main {
-  max-width: 900px; margin: 0 auto;
-  padding: 3.5rem 1.5rem 7rem;
-  position: relative; z-index: 1;
-}
-
-/* ══════════════════════════════════════════
-   HERO / SEARCH
-══════════════════════════════════════════ */
-.hero { margin-bottom: 3rem; }
-
-.hero-eyebrow {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--accent); letter-spacing: 2px;
-  margin-bottom: 10px;
-  display: flex; align-items: center; gap: 8px;
-}
-.hero-eyebrow::before {
-  content: '';
-  display: inline-block; width: 20px; height: 1px;
-  background: var(--accent);
-}
-
-.search-title {
-  font-family: var(--display);
-  font-size: 62px; letter-spacing: 1px; line-height: 0.95;
-  margin-bottom: 24px;
-}
-.search-title .hi { color: var(--accent); }
-.search-title .dim { color: var(--text3); }
-
-/* Search box */
-.search-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: var(--r);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-.search-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-
-.search-row {
-  display: flex;
-}
-
-#urlInput {
-  flex: 1; background: transparent; border: none; outline: none;
-  padding: 16px 20px; font-size: 13px;
-  font-family: var(--mono); color: var(--text);
-  min-width: 0;
-}
-#urlInput::placeholder { color: var(--text3); }
-
-.btn-go {
-  background: var(--accent); color: #fff; border: none;
-  padding: 16px 32px; font-family: var(--display);
-  font-size: 20px; letter-spacing: 1px;
-  cursor: pointer; transition: background 0.15s, transform 0.1s;
-  white-space: nowrap; flex-shrink: 0;
-}
-.btn-go:hover  { background: var(--accent2); }
-.btn-go:active { transform: scale(0.98); }
-.btn-go:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-
-.search-hints {
-  display: flex; gap: 8px; flex-wrap: wrap;
-  padding: 10px 16px;
-  border-top: 1px solid var(--border);
-}
-.hint-pill {
-  font-size: 10px; font-family: var(--mono);
-  color: var(--text3); padding: 3px 10px;
-  border-radius: 20px; border: 1px solid var(--border);
-  cursor: pointer; transition: all 0.15s;
-  white-space: nowrap;
-}
-.hint-pill:hover { border-color: var(--accent); color: var(--accent); }
-
-/* SPA Toggle */
-.controls-row {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-
-.spa-toggle {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; color: var(--text3);
-  font-family: var(--mono); cursor: pointer;
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  transition: border-color 0.2s, color 0.2s;
-  user-select: none;
-}
-.spa-toggle:hover { border-color: var(--border3); color: var(--text2); }
-.spa-toggle.on    { border-color: var(--accent); color: var(--accent); }
-
-.spa-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  border: 1.5px solid currentColor;
-  flex-shrink: 0; transition: background 0.2s;
-}
-.spa-toggle.on .spa-dot { background: var(--accent); }
-
-/* Status */
-.status {
-  display: none; align-items: center; gap: 10px;
-  margin-top: 14px; font-size: 12px;
-  font-family: var(--mono); color: var(--text2);
-}
-.spinner {
-  width: 13px; height: 13px;
-  border: 2px solid var(--border2);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.65s linear infinite; flex-shrink: 0;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Error */
-.error-box {
-  display: none;
-  background: rgba(255,60,95,0.06);
-  border: 1px solid rgba(255,60,95,0.2);
-  color: var(--accent2); border-radius: var(--r-sm);
-  padding: 12px 16px; font-size: 12px;
-  font-family: var(--mono); margin-top: 14px;
-  line-height: 1.6;
-}
-
-/* ══════════════════════════════════════════
-   LIST MODE
-══════════════════════════════════════════ */
-#list-mode { display: none; }
-
-.list-header {
-  display: flex; align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 20px; flex-wrap: wrap; gap: 8px;
-}
-.list-h {
-  font-family: var(--display); font-size: 36px;
-  letter-spacing: 1px;
-}
-.list-ct {
-  font-family: var(--mono); font-size: 11px; color: var(--text3);
-}
-
-.video-list { display: flex; flex-direction: column; gap: 10px; }
-
-.video-item {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  display: flex; gap: 14px; padding: 14px;
-  transition: border-color 0.2s, background 0.2s;
-  animation: fadeUp 0.3s ease both;
-}
-.video-item:hover { border-color: var(--border3); background: var(--surface2); }
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.item-thumb {
-  width: 130px; height: 75px; border-radius: 7px;
-  background: var(--surface2); flex-shrink: 0;
-  overflow: hidden; position: relative;
-  display: flex; align-items: center; justify-content: center;
-}
-.item-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.thumb-icon { font-size: 22px; opacity: 0.15; }
-.item-dur {
-  position: absolute; bottom: 4px; right: 5px;
-  background: rgba(0,0,0,0.8);
-  font-size: 10px; font-family: var(--mono); color: #fff;
-  padding: 1px 5px; border-radius: 3px;
-}
-
-.item-info { flex: 1; min-width: 0; }
-.item-title {
-  font-size: 14px; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  margin-bottom: 6px;
-}
-.item-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-
-.tag {
-  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
-  padding: 2px 8px; border-radius: 20px;
-}
-.tag-p { background: #1a1030; color: #a78bfa; border: 1px solid #2a1a50; }
-.tag-s { background: #0a1e10; color: #6ee7a0; border: 1px solid #163220; }
-.tag-n { background: #1e1600; color: #fcd34d; border: 1px solid #3a2e00; }
-.tag-b { background: #0a1626; color: #60a5fa; border: 1px solid #162440; }
-
-.item-url {
-  font-family: var(--mono); font-size: 10px; color: var(--text3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  margin-bottom: 10px;
-}
-.item-actions { display: flex; gap: 8px; }
-
-.btn-dl {
-  background: var(--accent); color: #fff; border: none;
-  border-radius: var(--r-sm); padding: 6px 14px;
-  font-size: 11px; font-weight: 600; font-family: var(--body);
-  cursor: pointer; transition: background 0.15s;
-}
-.btn-dl:hover { background: var(--accent2); }
-.btn-dl:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.empty {
-  display: none; text-align: center; padding: 5rem 2rem;
-  color: var(--text3);
-}
-.empty h3 {
-  font-family: var(--display); font-size: 30px;
-  color: var(--text2); margin-bottom: 10px; letter-spacing: 1px;
-}
-.empty p {
-  font-size: 12px; font-family: var(--mono);
-  color: var(--text3); line-height: 1.9;
-}
-
-/* ══════════════════════════════════════════
-   CINEMA MODE (shared base)
-══════════════════════════════════════════ */
-.cinema-screen {
-  display: none;
-  position: fixed; inset: 0;
-  background: #000; z-index: 200;
-}
-
-.cinema-bar {
-  position: absolute; top: 0; left: 0; right: 0;
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  z-index: 210;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.88) 0%, transparent 100%);
-  transition: opacity 0.35s;
-  gap: 12px;
-}
-.cinema-bar.faded { opacity: 0; pointer-events: none; }
-
-.cinema-title {
-  font-family: var(--mono); font-size: 11px;
-  color: rgba(255,255,255,0.45);
-  white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; max-width: 50vw;
-}
-
-.cinema-btns { display: flex; gap: 7px; flex-wrap: nowrap; }
-
-.cbtn {
-  background: rgba(255,255,255,0.09);
-  border: 1px solid rgba(255,255,255,0.14);
-  color: rgba(255,255,255,0.85); border-radius: var(--r-sm);
-  padding: 6px 12px; font-size: 11px;
-  font-family: var(--mono); cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  white-space: nowrap;
-}
-.cbtn:hover { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.25); }
-.cbtn.active { border-color: var(--accent); color: var(--accent); }
-
-/* Video element — shared */
-.cinema-video {
-  width: 100vw; height: 100vh;
-  object-fit: contain;
-  position: absolute; top: 0; left: 0;
-  z-index: 201; background: #000;
-  display: none;
-}
-
-/* Subtitle styling */
-.cinema-video::cue {
-  background: rgba(0,0,0,0.78);
-  color: #fff;
-  font-family: var(--body);
-  font-size: 1.05em;
-  line-height: 1.5;
-  border-radius: 4px;
-}
-
-/* Loading / error overlay */
-.cinema-overlay {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 14px; background: #000;
-  z-index: 205; transition: opacity 0.3s;
-}
-.cinema-overlay.hidden { display: none !important; }
-
-.big-spinner {
-  width: 42px; height: 42px;
-  border: 3px solid #1a1a1a;
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-}
-.cinema-overlay p  { font-family: var(--mono); font-size: 11px; color: var(--text3); }
-.cinema-overlay h3 { font-family: var(--display); font-size: 36px; color: var(--accent); letter-spacing: 2px; }
-
-/* ══════════════════════════════════════════
-   SUBTITLE PANEL
-══════════════════════════════════════════ */
-.sub-panel {
-  position: absolute;
-  bottom: 70px; right: 16px;
-  background: rgba(10,10,14,0.95);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 14px;
-  width: 310px;
-  z-index: 215;
-  display: none;
-  backdrop-filter: blur(14px);
-  animation: subSlide 0.2s ease;
-}
-.sub-panel.visible { display: block; }
-
-@keyframes subSlide {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.sub-header {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.sub-header-title {
-  font-family: var(--mono); font-size: 10px;
-  color: rgba(255,255,255,0.3); letter-spacing: 1.5px;
-}
-.sub-off-btn {
-  font-size: 10px; font-family: var(--mono);
-  color: rgba(255,255,255,0.3); cursor: pointer;
-  padding: 2px 8px; border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px; transition: all 0.15s;
-}
-.sub-off-btn:hover { color: var(--accent); border-color: var(--accent); }
-
-.sub-lang-row {
-  display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px;
-}
-.sub-lang-btn {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.55);
-  border-radius: 4px; padding: 4px 10px;
-  font-size: 11px; font-family: var(--mono);
-  cursor: pointer; transition: all 0.15s;
-}
-.sub-lang-btn:hover  { border-color: rgba(255,255,255,0.25); color: #fff; }
-.sub-lang-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-
-.sub-list {
-  max-height: 220px;
-  overflow-y: auto;
-  margin: 0 -4px;
-  padding: 0 4px;
-}
-.sub-list::-webkit-scrollbar { width: 3px; }
-.sub-list::-webkit-scrollbar-track { background: transparent; }
-.sub-list::-webkit-scrollbar-thumb { background: var(--border3); border-radius: 3px; }
-
-.sub-item {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; gap: 8px;
-  padding: 8px 10px; border-radius: 7px;
-  cursor: pointer; transition: background 0.15s;
-}
-.sub-item:hover  { background: rgba(255,255,255,0.06); }
-.sub-item.active { background: rgba(255,60,95,0.12); }
-
-.sub-item-left { flex: 1; min-width: 0; }
-.sub-item-name {
-  font-size: 11px; font-family: var(--mono);
-  color: rgba(255,255,255,0.65);
-  white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 3px;
-}
-.sub-item.active .sub-item-name { color: var(--accent); }
-
-.sub-item-meta {
-  display: flex; gap: 6px; align-items: center;
-}
-.sub-badge {
-  font-size: 9px; font-family: var(--mono);
-  padding: 1px 5px; border-radius: 3px;
-}
-.sub-badge-hi   { background: rgba(61,255,160,0.12); color: var(--green); }
-.sub-badge-dl   { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.3); }
-
-.sub-item-load {
-  font-size: 10px; font-family: var(--mono);
-  color: var(--accent); flex-shrink: 0;
-  align-self: center;
-  display: none;
-}
-.sub-item.loading .sub-item-load { display: block; }
-.sub-item.loading .sub-item-name { opacity: 0.5; }
-
-.sub-empty {
-  font-size: 11px; font-family: var(--mono);
-  color: rgba(255,255,255,0.2);
-  padding: 16px 10px; text-align: center;
-  line-height: 1.8;
-}
-.sub-searching {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; font-family: var(--mono);
-  color: rgba(255,255,255,0.3); padding: 12px 10px;
-}
-
-.sub-status-bar {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  font-size: 10px; font-family: var(--mono);
-  color: rgba(255,255,255,0.25);
-  display: flex; align-items: center; gap: 6px;
-}
-.sub-status-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--text3); flex-shrink: 0;
-}
-.sub-status-dot.active { background: var(--green); }
-
-/* ══════════════════════════════════════════
-   IMDB INFO BAR
-══════════════════════════════════════════ */
-.imdb-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
-
-.imdb-poster {
-  width: 34px; height: 50px; border-radius: 4px;
-  object-fit: cover; flex-shrink: 0; background: #222;
-}
-
-.imdb-meta { min-width: 0; }
-.imdb-title-bar {
-  font-family: var(--display); font-size: 18px;
-  letter-spacing: 1px; color: #fff;
-  white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; max-width: 45vw;
-}
-.imdb-sub {
-  font-family: var(--mono); font-size: 10px;
-  color: rgba(255,255,255,0.35);
-  display: flex; gap: 8px; flex-wrap: wrap;
-  margin-top: 2px;
-}
-
-/* IMDB frame fallback */
-#imdbFrame {
-  width: 100vw; height: 100vh;
-  border: none; background: #000;
-  position: absolute; top: 0; left: 0;
-  z-index: 201; display: none;
-}
-
-/* ══════════════════════════════════════════
-   FOOTER
-══════════════════════════════════════════ */
-footer {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  text-align: center; font-size: 10px;
-  font-family: var(--mono); color: var(--text3);
-  padding: 10px;
-  background: rgba(7,7,9,0.94);
-  border-top: 1px solid var(--border);
-  z-index: 10;
-  letter-spacing: 0.5px;
-}
-
-/* ══════════════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════════════ */
-@media (max-width: 600px) {
-  .search-title { font-size: 44px; }
-  .item-thumb { width: 90px; height: 55px; }
-  .btn-go { padding: 16px 18px; font-size: 17px; }
-  .sub-panel { width: calc(100vw - 24px); right: 12px; }
-  .cinema-btns .cbtn:not(:last-child):not(#btnSubCinema) { display: none; }
+@media(max-width:480px){
+  .movie-grid{grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:9px}
+  .sheet-inner{flex-direction:column}
+  .sheet-poster{width:100%;aspect-ratio:16/9;min-width:unset}
+  .sheet-poster img{object-position:top}
+  .sub-panel{width:calc(100vw - 24px);right:12px}
 }
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════
-     HEADER
-════════════════════════════ -->
-<header>
-  <div class="logo">
-    STREAM<div class="logo-dot"></div><span>VAULT</span>
+<!-- ── NAV ── -->
+<nav>
+  <div class="logo">STREAM<span>VAULT</span></div>
+  <div class="nav-tabs">
+    <div class="ntab active" id="ntAll"    onclick="setNTab('all')">Semua</div>
+    <div class="ntab"        id="ntMovie"  onclick="setNTab('movie')">Film</div>
+    <div class="ntab"        id="ntSeries" onclick="setNTab('tvseries')">Serial</div>
   </div>
-  <div class="header-right">
-    <div class="ver-tag">v2.2</div>
+  <div class="header-right" style="margin-left: auto;">
+    <a href="/extractor.html" style="text-decoration: none; font-family: var(--mono); font-size: 11px; font-weight: bold; color: #fff; background: var(--accent); border: 1px solid var(--accent2); padding: 8px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; box-shadow: 0 0 10px rgba(255, 60, 95, 0.3);">
+      🔗 BUKA EXTRACTOR
+    </a>
   </div>
-</header>
+</nav>
 
-<!-- ════════════════════════════
-     MAIN / SEARCH
-════════════════════════════ -->
-<main>
-  <div class="hero">
-    <div class="hero-eyebrow"></div>
-    <div class="search-title">
-      SCAN &amp; <span class="hi">STREAM</span><br>
-      <span class="dim">ANYTHING</span>
-    </div>
-
-    <div class="search-wrap">
-      <div class="search-row">
-        <input id="urlInput" type="url"
-          placeholder="imdb.com/title/tt... · URL halaman lain"
-          autocomplete="off" spellcheck="false">
-        <button class="btn-go" id="btnGo" onclick="handleSubmit()">SCAN</button>
-      </div>
-      <div class="search-hints">
-        <div class="hint-pill" onclick="fillHint('https://www.imdb.com/title/tt0111161/')">IMDB · The Shawshank Redemption</div>
-        <div class="hint-pill" onclick="fillHint('https://www.imdb.com/title/tt0468569/')">IMDB · The Dark Knight</div>
-        <div class="hint-pill" onclick="fillHint('https://www.imdb.com/title/tt1375666/')">IMDB · Inception</div>
-      </div>
-    </div>
-
-    <div class="controls-row">
-      <div class="spa-toggle" id="spaToggle" onclick="toggleSpa()">
-        <div class="spa-dot"></div>
-        <span id="spaLabel">Mode SPA (off)</span>
-      </div>
-    </div>
-
-    <div class="status" id="status">
-      <div class="spinner"></div>
-      <span id="statusText"></span>
-    </div>
-    <div class="error-box" id="errorBox"></div>
+<!-- ── SEARCH ── -->
+<div class="search-area">
+  <div class="search-row">
+    <input id="searchInput" type="text"
+      placeholder="Cari film, serial, aktor... (contoh: Inception, Breaking Bad)"
+      autocomplete="off" spellcheck="false">
+    <button class="btn-search" id="btnSearch" onclick="doSearch()">CARI</button>
   </div>
+</div>
 
-  <!-- List mode -->
-  <div id="list-mode">
-    <div class="list-header">
-      <div class="list-h">HASIL SCAN</div>
-      <div class="list-ct" id="listCount"></div>
-    </div>
-    <div class="video-list" id="videoList"></div>
-    <div class="empty" id="emptyState">
-      <h3>TIDAK ADA VIDEO</h3>
-      <p>Halaman tidak mengandung video terdeteksi.<br>
-         Coba aktifkan Mode SPA untuk halaman React / Vue / Next.js</p>
-    </div>
-  </div>
-</main>
+<!-- ── STATUS ── -->
+<div class="status-bar" id="statusBar">
+  <div class="spinner"></div>
+  <span id="statusTxt">Mencari...</span>
+</div>
 
-<!-- ════════════════════════════
-     CINEMA MODE — vidgf
-════════════════════════════ -->
-<div id="cinema-mode" class="cinema-screen">
+<!-- ── GENRE CHIPS ── -->
+<div class="filter-row">
+  <div class="chip active" onclick="setGenre(this,'all')">Semua Genre</div>
+  <div class="chip" onclick="setGenre(this,'Action')">Action</div>
+  <div class="chip" onclick="setGenre(this,'Drama')">Drama</div>
+  <div class="chip" onclick="setGenre(this,'Comedy')">Comedy</div>
+  <div class="chip" onclick="setGenre(this,'Thriller')">Thriller</div>
+  <div class="chip" onclick="setGenre(this,'Horror')">Horror</div>
+  <div class="chip" onclick="setGenre(this,'Sci-Fi')">Sci-Fi</div>
+  <div class="chip" onclick="setGenre(this,'Romance')">Romance</div>
+  <div class="chip" onclick="setGenre(this,'Animation')">Animation</div>
+  <div class="chip" onclick="setGenre(this,'Crime')">Crime</div>
+  <div class="chip" onclick="setGenre(this,'Adventure')">Adventure</div>
+  <div class="chip" onclick="setGenre(this,'Fantasy')">Fantasy</div>
+</div>
 
-  <!-- Loading overlay -->
-  <div class="cinema-overlay" id="cinemaLoading">
-    <div class="big-spinner"></div>
-    <p id="cinemaLoadText">Mengekstrak link video...</p>
-  </div>
-
-  <!-- Error overlay -->
-  <div class="cinema-overlay hidden" id="cinemaError">
-    <h3>GAGAL</h3>
-    <p id="cinemaErrText">Tidak bisa mengambil link video.</p>
-    <button class="cbtn" style="margin-top:10px" onclick="closeCinema()">← KEMBALI</button>
-  </div>
-
-  <!-- Video -->
-  <video id="cinemaVideo" class="cinema-video" controls autoplay playsinline></video>
-
-  <!-- Subtitle panel -->
-  <div class="sub-panel" id="subPanelCinema">
-    <div class="sub-header">
-      <div class="sub-header-title">// SUBTITLE</div>
-      <div class="sub-off-btn" onclick="disableSubtitle('cinemaVideo', 'subPanelCinema', 'btnSubCinema')">MATIKAN</div>
-    </div>
-    <div class="sub-lang-row" id="subLangCinema"></div>
-    <div class="sub-list" id="subListCinema">
-      <div class="sub-empty">Pilih bahasa terlebih dahulu</div>
-    </div>
-    <div class="sub-status-bar">
-      <div class="sub-status-dot" id="subDotCinema"></div>
-      <span id="subStatusCinema">Tidak ada subtitle aktif</span>
-    </div>
-  </div>
-
-  <!-- Bar -->
-  <div class="cinema-bar" id="cinemaBar">
-    <div class="cinema-title" id="cinemaTitle">vidgf player</div>
-    <div class="cinema-btns">
-      <button class="cbtn" id="btnSubCinema" onclick="toggleSubPanel('Cinema')">CC SUB</button>
-      <button class="cbtn" onclick="copyUrl()">COPY URL</button>
-      <button class="cbtn" onclick="dlCinema()">↓ UNDUH</button>
-      <button class="cbtn" onclick="closeCinema()">✕</button>
+<!-- ── GRID ── -->
+<div class="grid-wrap">
+  <div class="movie-grid" id="movieGrid">
+    <div class="empty">
+      <h3>CARI FILM</h3>
+      <p>Ketik judul di kotak pencarian di atas.<br>Data diambil langsung dari IMDB secara real-time.</p>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════
-     IMDB CINEMA MODE
-════════════════════════════ -->
-<div id="imdb-mode" class="cinema-screen">
+<!-- ── DETAIL PANEL ── -->
+<div id="detailPanel">
+  <div class="detail-bg" onclick="closeDetail()"></div>
+  <div class="detail-sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeDetail()">✕ TUTUP</button>
+    <div class="sheet-inner">
+      <div class="sheet-poster">
+        <img id="dpPoster" src="" alt="">
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-title" id="dpTitle">—</div>
+        <div class="sheet-badges" id="dpBadges"></div>
+        <div class="sheet-desc" id="dpDesc">—</div>
 
-  <!-- Loading overlay -->
-  <div class="cinema-overlay" id="imdbLoading">
-    <div class="big-spinner"></div>
-    <p id="imdbLoadText">Mengambil info film...</p>
+        <!-- Providers (JustWatch) -->
+        <div class="providers-wrap" id="providersWrap" style="display:none">
+          <div class="sub-label">Tersedia di:</div>
+          <div class="prov-list" id="provList"></div>
+        </div>
+
+        <!-- Photos -->
+        <div class="photos-wrap" id="photosWrap" style="display:none">
+          <div class="sub-label">Foto / Still:</div>
+          <div class="photos-row" id="photosList"></div>
+        </div>
+
+        <button class="btn-stream" id="btnStream" onclick="startStream()">
+          ▶&nbsp; TONTON SEKARANG
+        </button>
+        <button class="btn-imdb" onclick="openImdb()">Buka di IMDB ↗</button>
+      </div>
+    </div>
   </div>
+</div>
 
-  <!-- Stream loading -->
-  <div class="cinema-overlay hidden" id="imdbStreamLoading">
-    <div class="big-spinner"></div>
-    <p>Mengekstrak stream URL...</p>
+<!-- ── PLAYER ── -->
+<div id="playerMode">
+  <div class="povl" id="pLoading">
+    <div class="big-spin"></div>
+    <p id="pLoadTxt">Mengambil stream URL...</p>
   </div>
-
-  <!-- Video -->
-  <video id="imdbVideo" class="cinema-video" controls autoplay playsinline></video>
-
-  <!-- Iframe fallback -->
-  <iframe id="imdbFrame"
+  <div class="povl hidden" id="pError">
+    <h3>GAGAL</h3>
+    <p id="pErrTxt">Stream tidak tersedia.</p>
+    <button class="pbtn" style="margin-top:8px" onclick="closePlayer()">← KEMBALI</button>
+  </div>
+  <video id="mainVideo" controls autoplay playsinline></video>
+  <iframe id="playerFrame"
     allowfullscreen
     allow="autoplay; fullscreen; picture-in-picture"
     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
   </iframe>
 
   <!-- Subtitle panel -->
-  <div class="sub-panel" id="subPanelImdb">
-    <div class="sub-header">
-      <div class="sub-header-title">// SUBTITLE</div>
-      <div class="sub-off-btn" onclick="disableSubtitle('imdbVideo', 'subPanelImdb', 'btnSubImdb')">MATIKAN</div>
+  <div class="sub-panel" id="subPanelBrowse">
+    <div class="sub-hdr">
+      <div class="sub-hdr-title">// SUBTITLE</div>
+      <div class="sub-off-btn" onclick="disableSubtitle()">MATIKAN</div>
     </div>
-    <div class="sub-lang-row" id="subLangImdb"></div>
-    <div class="sub-list" id="subListImdb">
+    <div class="sub-lang-row" id="subLangRow"></div>
+    <div class="sub-list" id="subList">
       <div class="sub-empty">Pilih bahasa terlebih dahulu</div>
     </div>
     <div class="sub-status-bar">
-      <div class="sub-status-dot" id="subDotImdb"></div>
-      <span id="subStatusImdb">Tidak ada subtitle aktif</span>
+      <div class="sub-status-dot" id="subDot"></div>
+      <span id="subStatus">Tidak ada subtitle aktif</span>
     </div>
   </div>
 
-  <!-- Bar -->
-  <div class="cinema-bar" id="imdbBar">
-    <div class="imdb-info">
-      <img class="imdb-poster" id="imdbPoster" src="" alt="" style="display:none">
-      <div class="imdb-meta">
-        <div class="imdb-title-bar" id="imdbTitle">Memuat...</div>
-        <div class="imdb-sub">
-          <span id="imdbYear"></span>
-          <span id="imdbRating"></span>
-          <span id="imdbGenre"></span>
-          <span id="imdbRuntime"></span>
-        </div>
-      </div>
-    </div>
-    <div class="cinema-btns">
-      <button class="cbtn" id="btnSubImdb" onclick="toggleSubPanel('Imdb')">CC SUB</button>
-      <a id="imdbLink" href="#" target="_blank" class="cbtn">IMDB ↗</a>
-      <button class="cbtn" onclick="closeImdb()">✕</button>
+  <div class="player-bar" id="playerBar">
+    <div class="player-title" id="playerTitle">Memuat...</div>
+    <div class="player-btns">
+      <button class="pbtn" id="btnSubBrowse" onclick="toggleSubPanel()">CC SUB</button>
+      <button class="pbtn" onclick="closePlayer()">✕ TUTUP</button>
     </div>
   </div>
 </div>
 
-<footer>StreamVault </footer>
-
-<!-- ════════════════════════════
-     JAVASCRIPT
-════════════════════════════ -->
 <script>
-/* ─── Konfigurasi ─── */
-const API = "";   // kosong = same origin (Vercel / localhost)
+/* ═══════════════════════════════════════
+   CONFIG — sesuaikan jika perlu
+═══════════════════════════════════════ */
+const IMDB_API   = "https://imdb.iamidiotareyoutoo.com"; // API publik IMDB
+const STREAM_API = "";   // "" = relative (sama server), atau isi URL backend kamu
 
-/* ─── State Global ─── */
-let allVideos    = [];
-let cinemaUrl    = "";
-let spaOn        = false;
-let hlsInstance  = null;
-let hideTimer    = null;
-let imdbHideTimer = null;
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let allResults   = [];
+let currentType  = "all";
+let currentGenre = "all";
+let selectedItem = null;
+let hlsInst      = null;
+let barTimer     = null;
 
-/* Subtitle state per player */
-const SUB_STATE = {
-  Cinema: { imdbId: null, title: "", activeLang: "en", activeFileId: null },
-  Imdb:   { imdbId: null, title: "", activeLang: "en", activeFileId: null },
-};
-
-/* Bahasa tersedia */
+/* Subtitle state */
+const SUB = { imdbId: null, title: "", activeLang: "en", activeFileId: null };
 const LANGS = [
   { code: "en",    label: "ENG" },
   { code: "id",    label: "IND" },
@@ -830,138 +518,451 @@ const LANGS = [
   { code: "es",    label: "ESP" },
 ];
 
-/* ─── Token ─── */
-let _token = null, _tokenExp = 0;
-
-async function getToken() {
-  if (_token && Date.now() < _tokenExp - 5000) return _token;
-  try {
-    const r = await fetch(`${API}/api/token`);
-    const d = await r.json();
-    _token    = d.token;
-    _tokenExp = Date.now() + d.expires_in * 1000;
-    return _token;
-  } catch { return null; }
+/* ═══════════════════════════════════════
+   NAV TABS
+═══════════════════════════════════════ */
+function setNTab(type) {
+  currentType = type;
+  document.querySelectorAll(".ntab").forEach(t => t.classList.remove("active"));
+  const map = { all:"ntAll", movie:"ntMovie", tvseries:"ntSeries" };
+  document.getElementById(map[type] || "ntAll").classList.add("active");
+  applyFilter();
 }
 
-async function apiFetch(url, opt = {}) {
-  const token = await getToken();
-  return fetch(url, {
-    ...opt,
-    headers: { ...(opt.headers || {}), "x-api-token": token || "" },
+/* ═══════════════════════════════════════
+   GENRE CHIPS
+═══════════════════════════════════════ */
+function setGenre(el, genre) {
+  currentGenre = genre;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  applyFilter();
+}
+
+/* ═══════════════════════════════════════
+   FILTER & RENDER
+═══════════════════════════════════════ */
+function applyFilter() {
+  let data = [...allResults];
+
+  if (currentType !== "all") {
+    data = data.filter(m =>
+      (m["#TYPE"] || "").toLowerCase() === currentType
+    );
+  }
+
+  if (currentGenre !== "all") {
+    data = data.filter(m =>
+      (m["#GENRE"] || "").toLowerCase().includes(currentGenre.toLowerCase())
+    );
+  }
+
+  renderGrid(data);
+}
+
+function renderGrid(items) {
+  const grid = document.getElementById("movieGrid");
+  grid.innerHTML = "";
+
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty">
+      <h3>TIDAK ADA HASIL</h3>
+      <p>Coba kata kunci lain atau ubah filter.</p>
+    </div>`;
+    return;
+  }
+
+  items.forEach((m, i) => {
+    const title  = m["#TITLE"]       || "Untitled";
+    const year   = m["#YEAR"]        || "";
+    const rating = m["#IMDB_RATING"] || "";
+    const type   = (m["#TYPE"] || "movie").toLowerCase();
+    const img    = m["#IMG_POSTER"]  || "";
+
+    const typeLabel = type === "tvseries"  ? "SERIAL"
+                    : type === "tvepisode" ? "EPISODE"
+                    : "FILM";
+    const typeClass = type === "tvseries"  ? "type-series"
+                    : type === "tvepisode" ? "type-episode"
+                    : "type-movie";
+
+    const card = document.createElement("div");
+    card.className = "movie-card";
+    card.style.animationDelay = Math.min(i * 30, 400) + "ms";
+    card.onclick = () => openDetail(m);
+
+    card.innerHTML = `
+      <div class="card-poster">
+        ${img
+          ? `<img src="${esc(img)}" alt="${esc(title)}" loading="lazy"
+               onerror="this.parentNode.innerHTML='<div class=no-img-icon>🎬</div>'">`
+          : `<div class="no-img-icon">🎬</div>`
+        }
+        ${rating ? `<div class="card-rating">★ ${esc(rating)}</div>` : ""}
+        <div class="card-type-badge ${typeClass}">${typeLabel}</div>
+      </div>
+      <div class="card-info">
+        <div class="card-title" title="${esc(title)}">${esc(title)}</div>
+        <div class="card-year">${esc(String(year))}</div>
+      </div>
+    `;
+    grid.appendChild(card);
   });
 }
 
-/* ─── SPA ─── */
-function toggleSpa() {
-  spaOn = !spaOn;
-  document.getElementById("spaToggle").classList.toggle("on", spaOn);
-  document.getElementById("spaLabel").textContent = spaOn ? "Mode SPA (on)" : "Mode SPA (off)";
-}
-
-/* ─── Hints ─── */
-function fillHint(url) {
-  document.getElementById("urlInput").value = url;
-  handleSubmit();
-}
-
-/* ─── UI Helpers ─── */
-function resetUI() {
-  document.getElementById("list-mode").style.display = "none";
-  document.getElementById("cinema-mode").style.display = "none";
-  document.getElementById("imdb-mode").style.display = "none";
-  document.getElementById("errorBox").style.display = "none";
-  document.getElementById("videoList").innerHTML = "";
-  allVideos = [];
-}
-
-function setStatus(show, text = "") {
-  const el = document.getElementById("status");
+/* ═══════════════════════════════════════
+   SEARCH (GET /search?q=)
+═══════════════════════════════════════ */
+function setStatus(show, txt) {
+  const el = document.getElementById("statusBar");
   el.style.display = show ? "flex" : "none";
-  document.getElementById("statusText").textContent = text;
+  if (txt) document.getElementById("statusTxt").textContent = txt;
 }
 
-function showError(msg) {
-  const el = document.getElementById("errorBox");
-  el.textContent = "⚠ " + msg;
-  el.style.display = "block";
+async function doSearch() {
+  const q = document.getElementById("searchInput").value.trim();
+  if (!q) return;
+
+  document.getElementById("btnSearch").disabled = true;
+  setStatus(true, `Mencari "${q}"...`);
+  document.getElementById("movieGrid").innerHTML = "";
+  allResults = [];
+
+  try {
+    const r = await fetch(`${IMDB_API}/search?q=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const raw = await r.json();
+
+    /* API bisa return array, atau object dengan key numerik, atau {description:[...]} */
+    if (Array.isArray(raw)) {
+      allResults = raw;
+    } else if (raw.description && Array.isArray(raw.description)) {
+      allResults = raw.description;
+    } else if (typeof raw === "object") {
+      allResults = Object.values(raw).filter(v =>
+        v && typeof v === "object" && v["#IMDB_ID"]
+      );
+    }
+
+    applyFilter();
+  } catch(e) {
+    document.getElementById("movieGrid").innerHTML = `
+      <div class="empty">
+        <h3>GAGAL</h3>
+        <p>Tidak bisa terhubung ke IMDB API.<br>${esc(e.message)}</p>
+      </div>`;
+  }
+
+  setStatus(false);
+  document.getElementById("btnSearch").disabled = false;
 }
 
-function setBtnLoading(loading) {
-  const btn = document.getElementById("btnGo");
-  btn.disabled = loading;
-  btn.textContent = loading ? "..." : "SCAN";
+document.getElementById("searchInput")
+  .addEventListener("keydown", e => e.key === "Enter" && doSearch());
+
+/* ═══════════════════════════════════════
+   DETAIL PANEL
+═══════════════════════════════════════ */
+async function openDetail(m) {
+  selectedItem = m;
+
+  const id     = m["#IMDB_ID"]      || "";
+  const title  = m["#TITLE"]        || "Untitled";
+  const year   = m["#YEAR"]         || "";
+  const rating = m["#IMDB_RATING"]  || "";
+  const type   = (m["#TYPE"] || "movie").toLowerCase();
+  const img    = m["#IMG_POSTER"]   || "";
+  const desc   = m["#DESCRIPTION"]  || m["#AKA"] || "Deskripsi tidak tersedia.";
+  const genre  = m["#GENRE"]        || "";
+
+  /* populate UI */
+  document.getElementById("dpTitle").textContent = title;
+  document.getElementById("dpDesc").textContent  = desc;
+  document.getElementById("dpPoster").src = img || "";
+
+  const badges = document.getElementById("dpBadges");
+  badges.innerHTML = "";
+  if (year)   badges.innerHTML += `<span class="badge b-year">${esc(String(year))}</span>`;
+  if (rating) badges.innerHTML += `<span class="badge b-rating">★ ${esc(rating)}</span>`;
+  badges.innerHTML += `<span class="badge b-type">${
+    type === "tvseries" ? "Serial TV" : type === "tvepisode" ? "Episode" : "Film"
+  }</span>`;
+  genre.split(",").slice(0, 3).forEach(g => {
+    if (g.trim()) badges.innerHTML += `<span class="badge b-genre">${esc(g.trim())}</span>`;
+  });
+
+  /* reset sub-sections */
+  document.getElementById("providersWrap").style.display = "none";
+  document.getElementById("photosWrap").style.display    = "none";
+  document.getElementById("provList").innerHTML          = "";
+  document.getElementById("photosList").innerHTML        = "";
+
+  /* show panel */
+  document.getElementById("detailPanel").style.display = "block";
+
+  /* fetch extra data concurrently */
+  if (id) {
+    fetchProviders(id);
+    fetchPhotos(id);
+  }
 }
 
+function closeDetail() {
+  document.getElementById("detailPanel").style.display = "none";
+}
+
+function openImdb() {
+  if (!selectedItem) return;
+  const id = selectedItem["#IMDB_ID"] || "";
+  if (id) window.open(`https://www.imdb.com/title/${id}/`, "_blank");
+}
+
+/* ═══════════════════════════════════════
+   JUSTWATCH  (GET /justwatch?q={imdb_id})
+═══════════════════════════════════════ */
+async function fetchProviders(imdbId) {
+  try {
+    const r = await fetch(`${IMDB_API}/justwatch?q=${imdbId}`);
+    if (!r.ok) return;
+    const data = await r.json();
+
+    const providers = new Set();
+    const collect = (obj) => {
+      if (!obj || typeof obj !== "object") return;
+      ["stream","buy","rent","free","flatrate"].forEach(key => {
+        if (Array.isArray(obj[key])) {
+          obj[key].forEach(p => { if (p.name) providers.add(p.name); });
+        }
+      });
+    };
+
+    if (data.result) {
+      collect(data.result);
+    } else {
+      Object.values(data).forEach(v => { if (v && typeof v === "object") collect(v); });
+    }
+
+    if (providers.size > 0) {
+      document.getElementById("provList").innerHTML =
+        [...providers].slice(0, 10).map(p =>
+          `<span class="prov-chip">${esc(p)}</span>`
+        ).join("");
+      document.getElementById("providersWrap").style.display = "block";
+    }
+  } catch(e) { /* silent */ }
+}
+
+/* ═══════════════════════════════════════
+   PHOTOS  (GET /photo/{id})
+═══════════════════════════════════════ */
+async function fetchPhotos(imdbId) {
+  try {
+    const r = await fetch(`${IMDB_API}/photo/${imdbId}`);
+    if (!r.ok) return;
+    const data = await r.json();
+
+    let urls = [];
+
+    if (Array.isArray(data)) {
+      urls = data.map(p => (typeof p === "string" ? p : p.url || p.src || "")).filter(Boolean);
+    } else if (typeof data === "object") {
+      /* flatten all string values that look like URLs */
+      const flatten = (obj) => {
+        Object.values(obj).forEach(v => {
+          if (typeof v === "string" && v.startsWith("http")) urls.push(v);
+          else if (Array.isArray(v)) v.forEach(x => {
+            if (typeof x === "string" && x.startsWith("http")) urls.push(x);
+            else if (x && x.url) urls.push(x.url);
+          });
+          else if (v && typeof v === "object") flatten(v);
+        });
+      };
+      flatten(data);
+    }
+
+    urls = [...new Set(urls)].slice(0, 10); // dedupe, max 10
+
+    if (urls.length > 0) {
+      document.getElementById("photosList").innerHTML = urls.map(u =>
+        `<div class="photo-thumb">
+           <img src="${esc(u)}" loading="lazy" onerror="this.parentNode.style.display='none'">
+         </div>`
+      ).join("");
+      document.getElementById("photosWrap").style.display = "block";
+    }
+  } catch(e) { /* silent */ }
+}
+
+/* ═══════════════════════════════════════
+   STREAM  (panggil /api/imdb dari backend kamu)
+═══════════════════════════════════════ */
+async function startStream() {
+  if (!selectedItem) return;
+
+  const id    = selectedItem["#IMDB_ID"] || "";
+  const title = selectedItem["#TITLE"]   || "Film";
+  if (!id) return;
+
+  // Set subtitle context
+  SUB.imdbId      = id;
+  SUB.title       = title;
+  SUB.activeFileId = null;
+  SUB.activeLang  = "en";
+
+  closeDetail();
+  document.getElementById("playerMode").style.display = "block";
+  showPLoading(`Mengambil stream untuk "${title}"...`);
+  document.getElementById("playerTitle").textContent =
+    `${title}${selectedItem["#YEAR"] ? " (" + selectedItem["#YEAR"] + ")" : ""}`;
+
+  try {
+    const res  = await fetch(`${STREAM_API}/api/imdb?id=${id}&action=stream`);
+    const data = await res.json();
+
+    if (data.stream_url) {
+      playHls(data.stream_url);
+    } else {
+      /* fallback embed */
+      loadFrame(data.embed_url || `https://vidsrc.to/embed/movie/${id}`);
+    }
+  } catch(e) {
+    /* backend tidak terjangkau → langsung embed */
+    loadFrame(`https://vidsrc.to/embed/movie/${id}`);
+  }
+}
+
+/* ── HLS Player ── */
+function playHls(proxyUrl) {
+  const v = document.getElementById("mainVideo");
+  if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
+
+  if (Hls.isSupported()) {
+    hlsInst = new Hls({ maxBufferLength: 30 });
+    hlsInst.loadSource(proxyUrl);
+    hlsInst.attachMedia(v);
+    hlsInst.on(Hls.Events.MANIFEST_PARSED, () => {
+      hidePOverlays();
+      v.style.display = "block";
+      v.play().catch(() => {});
+    });
+    hlsInst.on(Hls.Events.ERROR, (e, d) => {
+      if (d.fatal) loadFrame(`https://vidsrc.to/embed/movie/${selectedItem["#IMDB_ID"] || ""}`);
+    });
+  } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+    v.src = proxyUrl;
+    v.addEventListener("loadedmetadata", () => {
+      hidePOverlays(); v.style.display = "block"; v.play().catch(() => {});
+    }, { once: true });
+  } else {
+    loadFrame(`https://vidsrc.to/embed/movie/${selectedItem["#IMDB_ID"] || ""}`);
+  }
+}
+
+/* ── Iframe Fallback ── */
+function loadFrame(url) {
+  hidePOverlays();
+  document.getElementById("mainVideo").style.display = "none";
+  const f = document.getElementById("playerFrame");
+  f.src = url;
+  f.style.display = "block";
+}
+
+/* ── Overlay helpers ── */
+function showPLoading(txt) {
+  document.getElementById("pError").classList.add("hidden");
+  document.getElementById("pLoading").classList.remove("hidden");
+  document.getElementById("pLoadTxt").textContent = txt;
+  document.getElementById("mainVideo").style.display   = "none";
+  document.getElementById("playerFrame").style.display = "none";
+}
+function hidePOverlays() {
+  document.getElementById("pLoading").classList.add("hidden");
+  document.getElementById("pError").classList.add("hidden");
+}
+
+/* ── Close Player ── */
+function closePlayer() {
+  document.getElementById("playerMode").style.display = "none";
+  const v = document.getElementById("mainVideo");
+  v.pause(); v.src = ""; v.style.display = "none";
+  Array.from(v.querySelectorAll("track")).forEach(t => t.remove());
+  const f = document.getElementById("playerFrame");
+  f.src = ""; f.style.display = "none";
+  if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
+  document.getElementById("pLoading").classList.remove("hidden");
+  document.getElementById("pError").classList.add("hidden");
+  document.getElementById("subPanelBrowse").classList.remove("visible");
+  clearTimeout(barTimer);
+
+  // Reset subtitle state
+  SUB.activeFileId = null;
+  const btn = document.getElementById("btnSubBrowse");
+  btn.textContent = "CC SUB"; btn.classList.remove("active");
+  document.getElementById("subDot").classList.remove("active");
+  document.getElementById("subStatus").textContent = "Tidak ada subtitle aktif";
+}
+
+/* ── Player bar auto-hide ── */
+document.getElementById("playerMode").addEventListener("mousemove", () => {
+  document.getElementById("playerBar").classList.remove("faded");
+  clearTimeout(barTimer);
+  barTimer = setTimeout(() =>
+    document.getElementById("playerBar").classList.add("faded"), 3500
+  );
+});
+
+/* ═══════════════════════════════════════
+   UTIL
+═══════════════════════════════════════ */
 function esc(s) {
-  return (s || "").replace(/[&<>"]/g, m =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m]
+  return String(s || "").replace(/[&<>"']/g, m =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])
   );
 }
 
-/* ─── Auto-hide bars ─── */
-function setupHideBar(screenId, barId, timerRef, delay = 3500) {
-  document.getElementById(screenId).addEventListener("mousemove", () => {
-    document.getElementById(barId).classList.remove("faded");
-    clearTimeout(timerRef.t);
-    timerRef.t = setTimeout(() => {
-      document.getElementById(barId).classList.add("faded");
-    }, delay);
-  });
-}
-const cinemaTmr = {}, imdbTmr = {};
-setupHideBar("cinema-mode", "cinemaBar", cinemaTmr, 3500);
-setupHideBar("imdb-mode",   "imdbBar",   imdbTmr,   4000);
-
-/* ════════════════════════════════════════════
+/* ═══════════════════════════════════════
    SUBTITLE SYSTEM
-════════════════════════════════════════════ */
+═══════════════════════════════════════ */
 
-/** Buka/tutup panel subtitle */
-function toggleSubPanel(playerKey) {
-  const panelId = "subPanel" + playerKey;
-  const panel   = document.getElementById(panelId);
-  const isOpen  = panel.classList.contains("visible");
-
+/** Toggle subtitle panel visibility */
+function toggleSubPanel() {
+  const panel = document.getElementById("subPanelBrowse");
+  const isOpen = panel.classList.contains("visible");
   if (!isOpen) {
     panel.classList.add("visible");
-    buildLangRow(playerKey);
-    // Langsung fetch bahasa aktif jika belum ada list
-    const list = document.getElementById("subList" + playerKey);
+    buildLangRow();
+    const list = document.getElementById("subList");
     if (list.querySelector(".sub-empty, .sub-searching")) {
-      fetchSubtitles(playerKey, SUB_STATE[playerKey].activeLang);
+      fetchSubtitles(SUB.activeLang);
     }
   } else {
     panel.classList.remove("visible");
   }
 }
 
-/** Render tombol pilih bahasa */
-function buildLangRow(playerKey) {
-  const row   = document.getElementById("subLang" + playerKey);
-  const state = SUB_STATE[playerKey];
+/** Render language buttons */
+function buildLangRow() {
+  const row = document.getElementById("subLangRow");
   row.innerHTML = LANGS.map(l => `
-    <button class="sub-lang-btn ${l.code === state.activeLang ? "active" : ""}"
-            onclick="selectLang('${playerKey}', '${l.code}', this)">
+    <button class="sub-lang-btn ${l.code === SUB.activeLang ? 'active' : ''}"
+            onclick="selectLang('${l.code}', this)">
       ${l.label}
     </button>
   `).join("");
 }
 
-/** Pilih bahasa */
-function selectLang(playerKey, code, el) {
-  SUB_STATE[playerKey].activeLang = code;
-  document.querySelectorAll(`#subLang${playerKey} .sub-lang-btn`)
+/** Select language */
+function selectLang(code, el) {
+  SUB.activeLang = code;
+  document.querySelectorAll("#subLangRow .sub-lang-btn")
     .forEach(b => b.classList.remove("active"));
   el.classList.add("active");
-  fetchSubtitles(playerKey, code);
+  fetchSubtitles(code);
 }
 
-/** Fetch daftar subtitle dari server */
-async function fetchSubtitles(playerKey, lang) {
-  const list  = document.getElementById("subList" + playerKey);
-  const state = SUB_STATE[playerKey];
-
+/** Fetch subtitle list from server */
+async function fetchSubtitles(lang) {
+  const list = document.getElementById("subList");
   list.innerHTML = `
     <div class="sub-searching">
       <div class="spinner"></div> Mencari subtitle ${lang.toUpperCase()}...
@@ -969,16 +970,16 @@ async function fetchSubtitles(playerKey, lang) {
 
   try {
     let paramStr = "";
-    if (state.imdbId) {
-      paramStr = `imdb_id=${encodeURIComponent(state.imdbId)}&lang=${lang}`;
-    } else if (state.title) {
-      paramStr = `query=${encodeURIComponent(state.title)}&lang=${lang}`;
+    if (SUB.imdbId) {
+      paramStr = `imdb_id=${encodeURIComponent(SUB.imdbId)}&lang=${lang}`;
+    } else if (SUB.title) {
+      paramStr = `query=${encodeURIComponent(SUB.title)}&lang=${lang}`;
     } else {
       list.innerHTML = `<div class="sub-empty">Tidak ada ID film tersedia</div>`;
       return;
     }
 
-    const r = await apiFetch(`${API}/api/subtitle/search?${paramStr}`);
+    const r = await fetch(`${STREAM_API}/api/subtitle/search?${paramStr}`);
     const d = await r.json();
 
     if (d.status === "error") {
@@ -993,15 +994,15 @@ async function fetchSubtitles(playerKey, lang) {
     }
 
     list.innerHTML = items.map((s, i) => {
-      const name    = esc(s.release || s.file_name || `Subtitle ${i + 1}`);
+      const name = esc(s.release || s.file_name || `Subtitle ${i + 1}`);
       const dlCount = s.downloads > 999
         ? Math.round(s.downloads / 1000) + "k"
         : (s.downloads || "");
-      const isActive = s.file_id === state.activeFileId;
+      const isActive = s.file_id === SUB.activeFileId;
       return `
-        <div class="sub-item ${isActive ? "active" : ""}"
-             id="sub-${playerKey}-${i}"
-             onclick="loadSubtitle('${playerKey}', '${s.file_id}', ${i})">
+        <div class="sub-item ${isActive ? 'active' : ''}"
+             id="sub-b-${i}"
+             onclick="loadSubtitle('${s.file_id}', ${i})">
           <div class="sub-item-left">
             <div class="sub-item-name" title="${name}">${name}</div>
             <div class="sub-item-meta">
@@ -1026,63 +1027,47 @@ async function fetchSubtitles(playerKey, lang) {
 }
 
 /** Download & inject subtitle */
-async function loadSubtitle(playerKey, fileId, idx) {
-  const videoId = playerKey === "Cinema" ? "cinemaVideo" : "imdbVideo";
-  const state   = SUB_STATE[playerKey];
-
-  // Tandai loading
-  document.querySelectorAll(`#subList${playerKey} .sub-item`)
+async function loadSubtitle(fileId, idx) {
+  document.querySelectorAll("#subList .sub-item")
     .forEach(el => el.classList.remove("active", "loading"));
-  const itemEl = document.getElementById(`sub-${playerKey}-${idx}`);
+  const itemEl = document.getElementById(`sub-b-${idx}`);
   if (itemEl) itemEl.classList.add("loading");
 
   try {
-    const r = await apiFetch(`${API}/api/subtitle/download?file_id=${fileId}`);
-
+    const r = await fetch(`${STREAM_API}/api/subtitle/download?file_id=${fileId}`);
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${r.status}`);
     }
-
     const srt = await r.text();
     if (!srt || srt.trim().length < 10) throw new Error("File subtitle kosong");
 
-    // Convert SRT → WebVTT
     const vtt     = srtToVtt(srt);
     const blob    = new Blob([vtt], { type: "text/vtt" });
     const blobUrl = URL.createObjectURL(blob);
+    applyVttToVideo(blobUrl, SUB.activeLang);
 
-    applyVttToVideo(videoId, blobUrl, state.activeLang);
+    SUB.activeFileId = fileId;
+    if (itemEl) { itemEl.classList.remove("loading"); itemEl.classList.add("active"); }
 
-    // Update state
-    state.activeFileId = fileId;
-    if (itemEl) {
-      itemEl.classList.remove("loading");
-      itemEl.classList.add("active");
-    }
-
-    // Update status bar
     const releaseName = itemEl
       ? itemEl.querySelector(".sub-item-name").textContent.trim()
-      : `Subtitle`;
-    updateSubStatus(playerKey, true, releaseName);
+      : "Subtitle";
+    updateSubStatus(true, releaseName);
 
-    // Update tombol bar
-    const btn = document.getElementById("btnSub" + playerKey);
-    if (btn) { btn.textContent = "CC ✓"; btn.classList.add("active"); }
+    const btn = document.getElementById("btnSubBrowse");
+    btn.textContent = "CC ✓"; btn.classList.add("active");
 
   } catch (e) {
     if (itemEl) itemEl.classList.remove("loading");
-    updateSubStatus(playerKey, false, "Gagal: " + e.message);
+    updateSubStatus(false, "Gagal: " + e.message);
   }
 }
 
-/** Inject VTT track ke elemen video */
-function applyVttToVideo(videoId, vttUrl, lang) {
-  const video = document.getElementById(videoId);
-  // Hapus semua track lama
+/** Inject VTT track to video element */
+function applyVttToVideo(vttUrl, lang) {
+  const video = document.getElementById("mainVideo");
   Array.from(video.querySelectorAll("track")).forEach(t => t.remove());
-  // Tambah baru
   const track = document.createElement("track");
   track.kind    = "subtitles";
   track.src     = vttUrl;
@@ -1090,394 +1075,42 @@ function applyVttToVideo(videoId, vttUrl, lang) {
   track.label   = lang.toUpperCase();
   track.default = true;
   video.appendChild(track);
-  // Aktifkan
   setTimeout(() => {
-    if (video.textTracks.length > 0) {
-      video.textTracks[0].mode = "showing";
-    }
+    if (video.textTracks.length > 0) video.textTracks[0].mode = "showing";
   }, 100);
 }
 
-/** Matikan subtitle */
-function disableSubtitle(videoId, panelId, btnId) {
-  const video = document.getElementById(videoId);
+/** Disable subtitle */
+function disableSubtitle() {
+  const video = document.getElementById("mainVideo");
   Array.from(video.querySelectorAll("track")).forEach(t => t.remove());
-  if (video.textTracks.length > 0) {
-    video.textTracks[0].mode = "disabled";
-  }
+  if (video.textTracks.length > 0) video.textTracks[0].mode = "disabled";
 
-  // Reset state
-  const playerKey = panelId.replace("subPanel", "");
-  SUB_STATE[playerKey].activeFileId = null;
-  document.querySelectorAll(`#subList${playerKey} .sub-item`)
+  SUB.activeFileId = null;
+  document.querySelectorAll("#subList .sub-item")
     .forEach(el => el.classList.remove("active"));
 
-  updateSubStatus(playerKey, false, "Tidak ada subtitle aktif");
-
-  const btn = document.getElementById(btnId);
-  if (btn) { btn.textContent = "CC SUB"; btn.classList.remove("active"); }
+  updateSubStatus(false, "Tidak ada subtitle aktif");
+  const btn = document.getElementById("btnSubBrowse");
+  btn.textContent = "CC SUB"; btn.classList.remove("active");
 }
 
-/** Update status bar subtitle */
-function updateSubStatus(playerKey, active, text) {
-  const dot    = document.getElementById("subDot" + playerKey);
-  const status = document.getElementById("subStatus" + playerKey);
-  if (dot)    dot.classList.toggle("active", active);
-  if (status) status.textContent = text;
+/** Update status bar */
+function updateSubStatus(active, text) {
+  const dot = document.getElementById("subDot");
+  const st  = document.getElementById("subStatus");
+  if (dot) dot.classList.toggle("active", active);
+  if (st)  st.textContent = text;
 }
 
-/**
- * Konversi SRT ke WebVTT
- * Perbedaan utama: koma pada timestamp SRT → titik pada VTT
- */
+/** Convert SRT → WebVTT */
 function srtToVtt(srt) {
   return "WEBVTT\n\n" + srt
     .replace(/\r\n/g, "\n").replace(/\r/g, "\n")
-    .replace(/^\uFEFF/, "")                              // BOM
-    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2")  // koma → titik
-    .replace(/<[^>]+>/g, "")                             // hapus tag HTML di teks
+    .replace(/^\uFEFF/, "")
+    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2")
+    .replace(/<[^>]+>/g, "")
     .trim();
-}
-
-/* ════════════════════════════════════════════
-   MAIN HANDLER
-════════════════════════════════════════════ */
-async function handleSubmit() {
-  const url = document.getElementById("urlInput").value.trim();
-  if (!url) return;
-  resetUI();
-
-  try {
-    const host  = new URL(url).hostname.toLowerCase();
-    const isImdb = host.includes("imdb") || /^tt\d+/.test(url);
-
-    if (isImdb)           return modeImdb(url);
-    if (host.includes("vidgf")) return modeVidgf(url);
-    return modeScan(url);
-  } catch {
-    showError("URL tidak valid");
-  }
-}
-
-document.getElementById("urlInput")
-  .addEventListener("keydown", e => e.key === "Enter" && handleSubmit());
-
-/* ════════════════════════════════════════════
-   IMDB MODE
-════════════════════════════════════════════ */
-function extractImdbId(u) {
-  const m = u.match(/tt(\d+)/);
-  if (m) return `tt${m[1]}`;
-  return u.startsWith("tt") ? u : null;
-}
-
-async function modeImdb(url) {
-  const id = extractImdbId(url);
-  if (!id) return showError("IMDB ID tidak valid. Contoh: tt1375666");
-
-  document.getElementById("imdb-mode").style.display = "block";
-  imdbShowLoading("Mengambil info film...");
-  setBtnLoading(true);
-
-  // Set subtitle state
-  SUB_STATE.Imdb.imdbId = id;
-
-  try {
-    const r = await fetch(`${API}/api/imdb?id=${id}&action=stream`);
-    const d = await r.json();
-
-    if (d.status !== "success") throw new Error(d.error || "Gagal mengambil data");
-
-    // Isi info bar
-    updateImdbUI(d, id);
-    SUB_STATE.Imdb.title = d.title || id;
-
-    if (d.stream_url) {
-      imdbShowStreamLoading();
-      playHls(d.stream_url, d.embed_url, id);
-    } else {
-      imdbShowIframe(d.embed_url || `https://streamimdb.ru/embed/movie/${id}`);
-    }
-  } catch (e) {
-    showError("Gagal memuat film: " + e.message);
-    imdbShowIframe(`https://streamimdb.ru/embed/movie/${id}`);
-  } finally {
-    setBtnLoading(false);
-    clearTimeout(imdbTmr.t);
-    imdbTmr.t = setTimeout(() => {
-      document.getElementById("imdbBar").classList.add("faded");
-    }, 4000);
-  }
-}
-
-function updateImdbUI(d, id) {
-  document.getElementById("imdbTitle").textContent   = d.title || id;
-  document.getElementById("imdbYear").textContent    = d.year || "";
-  document.getElementById("imdbRating").textContent  = d.rating ? `⭐ ${d.rating}/10` : "";
-  document.getElementById("imdbGenre").textContent   = d.genre || "";
-  document.getElementById("imdbRuntime").textContent = d.runtime || "";
-  document.getElementById("imdbLink").href           = d.imdb_url || "#";
-
-  const p = document.getElementById("imdbPoster");
-  if (d.poster && d.poster !== "N/A") {
-    p.src = d.poster; p.style.display = "block";
-  } else {
-    p.style.display = "none";
-  }
-}
-
-function imdbShowLoading(text) {
-  document.getElementById("imdbVideo").style.display = "none";
-  document.getElementById("imdbFrame").style.display = "none";
-  document.getElementById("imdbStreamLoading").classList.add("hidden");
-  document.getElementById("imdbLoadText").textContent = text;
-  document.getElementById("imdbLoading").classList.remove("hidden");
-}
-
-function imdbShowStreamLoading() {
-  document.getElementById("imdbLoading").classList.add("hidden");
-  document.getElementById("imdbVideo").style.display = "none";
-  document.getElementById("imdbFrame").style.display = "none";
-  document.getElementById("imdbStreamLoading").classList.remove("hidden");
-}
-
-function imdbShowVideo() {
-  document.getElementById("imdbLoading").classList.add("hidden");
-  document.getElementById("imdbStreamLoading").classList.add("hidden");
-  document.getElementById("imdbFrame").style.display = "none";
-  document.getElementById("imdbVideo").style.display = "block";
-}
-
-function imdbShowIframe(src) {
-  document.getElementById("imdbLoading").classList.add("hidden");
-  document.getElementById("imdbStreamLoading").classList.add("hidden");
-  document.getElementById("imdbVideo").style.display = "none";
-  const f = document.getElementById("imdbFrame");
-  f.src = src; f.style.display = "block";
-}
-
-function playHls(proxiedUrl, embedUrl, imdbId) {
-  const v = document.getElementById("imdbVideo");
-  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-
-  if (Hls.isSupported()) {
-    hlsInstance = new Hls({ maxBufferLength: 30 });
-    hlsInstance.loadSource(proxiedUrl);
-    hlsInstance.attachMedia(v);
-    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-      imdbShowVideo();
-      v.play().catch(() => {});
-    });
-    hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-      if (data.fatal) {
-        imdbShowIframe(embedUrl || `https://streamimdb.ru/embed/movie/${imdbId}`);
-      }
-    });
-  } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
-    v.src = proxiedUrl;
-    v.addEventListener("loadedmetadata", () => {
-      imdbShowVideo();
-      v.play().catch(() => {});
-    }, { once: true });
-  } else {
-    imdbShowIframe(embedUrl || `https://streamimdb.ru/embed/movie/${imdbId}`);
-  }
-}
-
-function closeImdb() {
-  document.getElementById("imdb-mode").style.display = "none";
-  const v = document.getElementById("imdbVideo");
-  v.pause(); v.src = ""; v.style.display = "none";
-  Array.from(v.querySelectorAll("track")).forEach(t => t.remove());
-  const f = document.getElementById("imdbFrame");
-  f.src = ""; f.style.display = "none";
-  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-
-  document.getElementById("imdbStreamLoading").classList.add("hidden");
-  document.getElementById("imdbLoading").classList.remove("hidden");
-  document.getElementById("imdbLoadText").textContent = "Mengambil info film...";
-  document.getElementById("subPanelImdb").classList.remove("visible");
-
-  // Reset subtitle state
-  SUB_STATE.Imdb.activeFileId = null;
-  document.getElementById("btnSubImdb").textContent = "CC SUB";
-  document.getElementById("btnSubImdb").classList.remove("active");
-  updateSubStatus("Imdb", false, "Tidak ada subtitle aktif");
-
-  clearTimeout(imdbTmr.t);
-}
-
-/* ════════════════════════════════════════════
-   VIDGF MODE
-════════════════════════════════════════════ */
-async function modeVidgf(url) {
-  const id = url.split("/").pop().split("?")[0];
-
-  document.getElementById("cinema-mode").style.display = "block";
-  cinemaShowLoading("Mengekstrak link video...");
-
-  // Set subtitle title dari URL
-  SUB_STATE.Cinema.imdbId = null;
-  SUB_STATE.Cinema.title  = id;
-
-  try {
-    const res = await apiFetch(`${API}/api/get-video?id=${id}`);
-    const d   = await res.json();
-    if (!d.link) throw new Error("Link tidak ditemukan dari server");
-
-    cinemaUrl = d.link;
-    document.getElementById("cinemaTitle").textContent = `vidgf · ${id}`;
-    SUB_STATE.Cinema.title = id;
-
-    const video = document.getElementById("cinemaVideo");
-
-    if (d.link.includes(".m3u8") && Hls.isSupported()) {
-      if (hlsInstance) hlsInstance.destroy();
-      hlsInstance = new Hls();
-      hlsInstance.loadSource(d.link);
-      hlsInstance.attachMedia(video);
-      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-        cinemaShowVideo();
-        video.play().catch(() => {});
-      });
-      hlsInstance.on(Hls.Events.ERROR, (e, data) => {
-        if (data.fatal) cinemaShowError("HLS gagal: " + (data.type || "unknown"));
-      });
-    } else {
-      video.src = d.link;
-      video.addEventListener("loadedmetadata", () => {
-        cinemaShowVideo(); video.play().catch(() => {});
-      }, { once: true });
-      video.addEventListener("canplay", () => cinemaShowVideo(), { once: true });
-    }
-  } catch (e) {
-    cinemaShowError(e.message || "Tidak bisa mengambil link video.");
-  }
-}
-
-function cinemaShowLoading(text) {
-  const v = document.getElementById("cinemaVideo");
-  v.style.display = "none";
-  document.getElementById("cinemaError").classList.add("hidden");
-  document.getElementById("cinemaLoadText").textContent = text;
-  document.getElementById("cinemaLoading").classList.remove("hidden");
-}
-
-function cinemaShowVideo() {
-  document.getElementById("cinemaLoading").classList.add("hidden");
-  document.getElementById("cinemaError").classList.add("hidden");
-  document.getElementById("cinemaVideo").style.display = "block";
-}
-
-function cinemaShowError(msg) {
-  document.getElementById("cinemaVideo").style.display = "none";
-  document.getElementById("cinemaLoading").classList.add("hidden");
-  document.getElementById("cinemaErrText").textContent = msg;
-  document.getElementById("cinemaError").classList.remove("hidden");
-}
-
-function closeCinema() {
-  document.getElementById("cinema-mode").style.display = "none";
-  const v = document.getElementById("cinemaVideo");
-  v.pause(); v.src = ""; v.style.display = "none";
-  Array.from(v.querySelectorAll("track")).forEach(t => t.remove());
-  if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-
-  document.getElementById("cinemaError").classList.add("hidden");
-  document.getElementById("cinemaLoading").classList.remove("hidden");
-  document.getElementById("cinemaLoadText").textContent = "Mengekstrak link video...";
-  document.getElementById("subPanelCinema").classList.remove("visible");
-
-  // Reset subtitle state
-  SUB_STATE.Cinema.activeFileId = null;
-  document.getElementById("btnSubCinema").textContent = "CC SUB";
-  document.getElementById("btnSubCinema").classList.remove("active");
-  updateSubStatus("Cinema", false, "Tidak ada subtitle aktif");
-
-  clearTimeout(cinemaTmr.t);
-}
-
-function copyUrl() {
-  if (cinemaUrl) navigator.clipboard.writeText(cinemaUrl).catch(() => {});
-}
-
-function dlCinema() {
-  if (!cinemaUrl) return alert("Link video belum dimuat!");
-  const a = document.createElement("a");
-  a.href = cinemaUrl; a.download = "video.mp4"; a.target = "_blank";
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-}
-
-/* ════════════════════════════════════════════
-   SCAN MODE
-════════════════════════════════════════════ */
-async function modeScan(url) {
-  setStatus(true, "Scan halaman...");
-  setBtnLoading(true);
-
-  try {
-    const r = await apiFetch(`${API}/api/scan`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ url, spa: spaOn }),
-    });
-    const d = await r.json();
-    allVideos = d.videos || [];
-
-    document.getElementById("list-mode").style.display = "block";
-
-    if (allVideos.length === 0) {
-      document.getElementById("emptyState").style.display = "block";
-      document.getElementById("listCount").textContent = "0 video";
-    } else {
-      document.getElementById("emptyState").style.display = "none";
-      document.getElementById("listCount").textContent = `${allVideos.length} video ditemukan`;
-      renderVideoList(allVideos);
-    }
-  } catch (e) {
-    showError(e.message);
-  }
-
-  setStatus(false);
-  setBtnLoading(false);
-}
-
-function renderVideoList(videos) {
-  const list = document.getElementById("videoList");
-  list.innerHTML = "";
-  videos.forEach((v, i) => {
-    const item = document.createElement("div");
-    item.className = "video-item";
-    item.style.animationDelay = (i * 40) + "ms";
-    item.innerHTML = `
-      <div class="item-thumb">
-        ${v.thumbnail
-          ? `<img src="${esc(v.thumbnail)}" alt="" onerror="this.style.display='none'">`
-          : `<div class="thumb-icon">▶</div>`}
-        ${v.duration ? `<div class="item-dur">${esc(v.duration)}</div>` : ""}
-      </div>
-      <div class="item-info">
-        <div class="item-title">${esc(v.title || "Video " + (i + 1))}</div>
-        <div class="item-meta">
-          ${v.source  ? `<span class="tag tag-s">${esc(v.source)}</span>`  : ""}
-          ${v.format  ? `<span class="tag tag-p">${esc(v.format)}</span>`  : ""}
-          ${v.quality ? `<span class="tag tag-n">${esc(v.quality)}</span>` : ""}
-        </div>
-        <div class="item-url">${esc(v.url)}</div>
-        <div class="item-actions">
-          <button class="btn-dl" onclick="dlItem(${i})">↓ DOWNLOAD</button>
-        </div>
-      </div>`;
-    list.appendChild(item);
-  });
-}
-
-function dlItem(i) {
-  const v = allVideos[i];
-  if (!v?.url) return;
-  const a = document.createElement("a");
-  a.href = v.url; a.download = (v.title || "video") + ".mp4"; a.target = "_blank";
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 </script>
 <script>

@@ -321,7 +321,7 @@ if __name__ == "__main__":
         "api/scan.py",
         "api/formats.py",
         "api/download.py",
-        "browse.html",
+        "extractor.html",
     ]
 
     missing = [f for f in required if not os.path.exists(f)]
@@ -338,5 +338,5 @@ if __name__ == "__main__":
             print(f"        {f}")
 
     print("\n>>> http://localhost:3000")
-    print(">>> http://localhost:3000/browse.html\n")
+    print(">>> http://localhost:3000/extractor.html\n")
     app.run(host="0.0.0.0", port=3000, debug=True)
