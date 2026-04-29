@@ -129,3 +129,77 @@ def fetch_srt(dl_url: str) -> tuple[str | None, str | None]:
         return r.text, None
     except Exception as e:
         return None, f"Koneksi gagal: {e}"
+
+
+# ═══════════════════════════════════════════════
+#  HTTP HANDLER (untuk Vercel router dispatch)
+# ═══════════════════════════════════════════════
+from http.server import BaseHTTPRequestHandler
+import json
+from urllib.parse import urlparse, parse_qs
+
+
+class handler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        path   = parsed.path
+        params = parse_qs(parsed.query)
+
+        # /api/subtitle/search
+        if "search" in path:
+            imdb_id    = (params.get("imdb_id", [None])[0] or "").strip() or None
+            query      = (params.get("query", [None])[0] or "").strip() or None
+            lang       = (params.get("lang", ["en"])[0] or "en").strip()
+            media_type = (params.get("type", ["movie"])[0] or "movie").strip()
+
+            result = search(imdb_id=imdb_id, query=query, lang=lang, media_type=media_type)
+            code = 200 if result["status"] == "success" else 503
+            return self._send_json(result, code)
+
+        # /api/subtitle/download
+        if "download" in path:
+            file_id = (params.get("file_id", [None])[0] or "").strip()
+            if not file_id:
+                return self._send_json({"error": "file_id wajib diisi"}, 400)
+
+            dl_url, err = get_download_url(file_id)
+            if err:
+                return self._send_json({"error": err}, 500)
+
+            srt_text, err = fetch_srt(dl_url)
+            if err:
+                return self._send_json({"error": err}, 500)
+
+            body = srt_text.encode("utf-8")
+            self.send_response(200)
+            self._cors()
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self._send_json({"error": "Route tidak ditemukan"}, 404)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
+
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, x-api-token")
+
+    def _send_json(self, data, code=200):
+        body = json.dumps(data, ensure_ascii=False).encode()
+        self.send_response(code)
+        self._cors()
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):
+        pass

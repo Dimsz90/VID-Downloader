@@ -17,7 +17,7 @@ from lib.auth import validate_token
 
 
 # ── Route yang TIDAK butuh token (publik) ─────────────────────────────────────
-PUBLIC_ROUTES = {"/api/token", "/api/debug"}
+PUBLIC_ROUTES = {"/api/token", "/api/debug", "/api/proxy"}
 
 
 class handler(BaseHTTPRequestHandler):
