@@ -5,21 +5,12 @@
       "src": "api/index.py",
       "use": "@vercel/python"
     },
-
     {
       "src": "*.html",
       "use": "@vercel/static"
     },
     {
-      "src": "manifest.json",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "sw.js",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "icons/*.png",
+      "src": "public/**",
       "use": "@vercel/static"
     }
   ],
@@ -29,20 +20,16 @@
       "dest": "api/index.py"
     },
     {
-      "src": "/icons/(.*)",
-      "dest": "/icons/$1"
-    },
-    {
-      "src": "/screenshots/(.*)",
-      "dest": "/screenshots/$1"
+      "src": "/sw.js",
+      "dest": "/public/sw.js"
     },
     {
       "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "dest": "/public/manifest.json"
     },
     {
-      "src": "/sw.js",
-      "dest": "/sw.js"
+      "src": "/icons/(.*)",
+      "dest": "/public/icons/$1"
     },
     {
       "src": "/extractor.html",
