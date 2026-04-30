@@ -1,23 +1,28 @@
 """
 server.py — Production Entry Point untuk Railway
-Berbasis Flask, mengintegrasikan seluruh fitur dari dev.py
+Berbasis Flask, mengintegrasikan seluruh fitur API dan SPA Routing.
 """
-import os, sys, importlib.util, re, tempfile, mimetypes, traceback
+import importlib.util
+import os
+import sys
+import re
+import tempfile
+import mimetypes
+import traceback
 from urllib.parse import quote, urljoin
+
 from flask import Flask, send_file, request, jsonify, Response
 from flask_cors import CORS
 
-# Fallback path (meskipun sudah diatur di Procfile, ini menjaga agar tetap bisa di-run lokal)
+# Tambah folder root dan api/ ke sys.path agar bisa import modul
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
 sys.path.insert(0, os.path.dirname(__file__))
 
 app = Flask(__name__)
 CORS(app)
 
-PORT = int(os.environ.get("PORT", 9000))
-
 def load(path):
-    """Fungsi pembantu untuk me-load modul secara dinamis dari path file"""
+    """Load modul Python secara dinamis dari file"""
     spec = importlib.util.spec_from_file_location("mod", path)
     mod  = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -35,25 +40,24 @@ def favicon():
 
 @app.route("/<path:filename>")
 def static_files(filename):
-    # 1. Coba cari file di root folder (misal: extractor.html)
+    # 1. Cek file di root folder
     if os.path.exists(filename):
         return send_file(filename)
     
-    # 2. Coba cari file di dalam folder public/ (misal: manifest.json, sw.js, icons/)
+    # 2. Cek file di dalam folder public/
     public_path = os.path.join("public", filename)
     if os.path.exists(public_path):
         return send_file(public_path)
     
     # 3. Fallback untuk SPA (Single Page Application)
-    # Jika request bukan untuk API, arahkan kembali ke index.html
     if not request.path.startswith('/api/'):
         if os.path.exists("index.html"):
             return send_file("index.html")
-    
+            
     return jsonify({"error": "Not Found"}), 404
 
 
-# ── 2. API ROUTES (Berdasarkan dev.py) ────────────────────────────────────────
+# ── 2. API ROUTES ─────────────────────────────────────────────────────────────
 
 @app.route("/api/debug")
 def debug():
@@ -173,8 +177,7 @@ def imdb_api():
             media_type = "tv" if info.get("type") == "series" else "movie"
             raw_url    = mod.get_fast_stream(imdb_id, media_type)
             if raw_url:
-                # Ambil protokol dari headers untuk mendeteksi HTTPS di balik proxy Railway
-                scheme = request.headers.get('X-Forwarded-Proto', 'http')
+                scheme = request.headers.get('X-Forwarded-Proto', 'https')
                 host = request.host
                 info["stream_url"] = f"{scheme}://{host}/api/proxy?url={quote(raw_url)}"
             info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
@@ -266,13 +269,10 @@ def subtitle_download():
 
     try:
         sub = load("api/subtitle.py")
-
-        # 1. Minta URL download dari OpenSubtitles
         dl_url, err = sub.get_download_url(file_id)
         if err:
             return jsonify({"error": err}), 500
 
-        # 2. Download konten .srt dan proxy ke frontend
         srt_text, err = sub.fetch_srt(dl_url)
         if err:
             return jsonify({"error": err}), 500
@@ -292,6 +292,11 @@ def subtitle_download():
 # ── RUN SERVER ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print(f"[SERVER] Starting Production Server on port {PORT}...", flush=True)
-    # Debug diset False untuk production
-    app.run(host="0.0.0.0", port=PORT, debug=False)
+    # Mengambil port dari environment variable (Wajib untuk Railway)
+    # Default ke 8000 jika dijalankan lokal
+    port = int(os.environ.get("PORT", 8000))
+    
+    print(f"[SERVER] Binding to 0.0.0.0:{port}...", flush=True)
+    
+    # debug=False mencegah auto-reload yang bisa bikin bentrok port di prod
+    app.run(host="0.0.0.0", port=port, debug=False)
