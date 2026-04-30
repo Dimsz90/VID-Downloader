@@ -3,7 +3,7 @@ server.py — Entry point untuk Railway
 Menggantikan Vercel serverless, jalan sebagai HTTP server biasa.
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import os, sys, mimetypes
+import os, sys, mimetypes, traceback
 
 # Pastikan folder api/ bisa di-import
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
@@ -23,27 +23,48 @@ class MainHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        path = self.path.split("?")[0]
+        try:
+            path = self.path.split("?")[0]
 
-        # Route API ke handler yang sesuai
-        if "/api/imdb-proxy" in path or "/api/imdb" in path or "/api/proxy" in path:
-            self._delegate(ImdbHandler)
-        elif path.startswith("/api/"):
-            self._delegate(IndexHandler)
-        else:
-            self._serve_static(path)
+            # Route API ke handler yang sesuai
+            if "/api/imdb-proxy" in path or "/api/imdb" in path or "/api/proxy" in path:
+                self._delegate(ImdbHandler)
+            elif path.startswith("/api/"):
+                self._delegate(IndexHandler)
+            else:
+                self._serve_static(path)
+        except Exception:
+            print("[ERROR] Unhandled exception in do_GET:", file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
 
-    def _delegate(self, HandlerClass):
+    def do_POST(self):
+        try:
+            self._delegate(IndexHandler, method="POST")
+        except Exception:
+            print("[ERROR] Unhandled exception in do_POST:", file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
+
+    def _delegate(self, HandlerClass, method="GET"):
         """Delegate request ke handler class tertentu."""
-        h = HandlerClass.__new__(HandlerClass)
-        h.path    = self.path
-        h.headers = self.headers
-        h.wfile   = self.wfile
-        h.rfile   = self.rfile
-        h.server  = self.server
-        h.request = self.request
-        h.client_address = self.client_address
-        HandlerClass.do_GET(h)
+        try:
+            h = HandlerClass.__new__(HandlerClass)
+            h.path    = self.path
+            h.headers = self.headers
+            h.wfile   = self.wfile
+            h.rfile   = self.rfile
+            h.server  = self.server
+            h.request = self.request
+            h.client_address = self.client_address
+            if method == "POST":
+                HandlerClass.do_POST(h)
+            else:
+                HandlerClass.do_GET(h)
+        except Exception:
+            print(f"[ERROR] Unhandled exception in _delegate ({method} {self.path}):", file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
 
     def _serve_static(self, path):
         # Map URL path ke file system
