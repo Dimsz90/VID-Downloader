@@ -190,7 +190,7 @@ class handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, x-api-token")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def _send_json(self, data, code=200):
         body = json.dumps(data, ensure_ascii=False).encode()

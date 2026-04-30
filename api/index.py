@@ -13,38 +13,15 @@ from urllib.parse import urlparse, parse_qs
 # Tambah api/ ke path agar bisa import lib.*
 sys.path.insert(0, os.path.dirname(__file__))
 
-from lib.auth import validate_token
 
-
-# ── Route yang TIDAK butuh token (publik) ─────────────────────────────────────
-PUBLIC_ROUTES = {"/api/token", "/api/debug", "/api/proxy"}
 
 
 class handler(BaseHTTPRequestHandler):
     """Single entry-point untuk semua /api/* di Vercel."""
 
-    # ── Token validation ──────────────────────────────────────────────────────
-    def _check_token(self) -> bool:
-        """Return True jika token valid atau route publik."""
-        path = urlparse(self.path).path
-        if path in PUBLIC_ROUTES:
-            return True
-        token = self.headers.get("x-api-token", "")
-        if not validate_token(token):
-            self._send_json({"error": "Token tidak valid atau kedaluwarsa"}, 401)
-            return False
-        return True
-
     # ── GET ────────────────────────────────────────────────────────────────────
     def do_GET(self):
-        if not self._check_token():
-            return
-
         path = urlparse(self.path).path
-
-        # /api/token
-        if path == "/api/token":
-            return self._dispatch_module("token", "GET")
 
         # /api/debug
         if path == "/api/debug":
@@ -78,9 +55,6 @@ class handler(BaseHTTPRequestHandler):
 
     # ── POST ───────────────────────────────────────────────────────────────────
     def do_POST(self):
-        if not self._check_token():
-            return
-
         path = urlparse(self.path).path
 
         if path == "/api/scan":
@@ -138,7 +112,7 @@ class handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, x-api-token")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def _send_json(self, data, code=200):
         body = json.dumps(data, ensure_ascii=False).encode()

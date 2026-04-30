@@ -115,9 +115,11 @@ class handler(BaseHTTPRequestHandler):
             if action == "stream":
                 m_type  = "tv" if info.get("type") == "series" else "movie"
                 raw_url = get_fast_stream(imdb_id, m_type)
-                # CDN punya CORS *, jadi browser bisa fetch langsung
-                # tanpa proxy (menghindari blokir IP datacenter)
-                info["stream_url"] = raw_url
+                if raw_url:
+                    # Membungkus link stream asli ke dalam route proxy lokal
+                    host = self.headers.get("Host", "")
+                    protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
+                    info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
                 info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
             return self.send_json({"status": "success", **info})
@@ -175,7 +177,7 @@ class handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin",  "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, x-api-token")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def send_json(self, data, code=200):
         body = json.dumps(data, ensure_ascii=False).encode()

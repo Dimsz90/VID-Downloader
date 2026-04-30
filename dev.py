@@ -8,7 +8,6 @@ from flask_cors import CORS
 
 # Tambah api/ ke path agar bisa import lib.*
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
-from lib.auth import generate_token, validate_token
 
 app = Flask(__name__)
 CORS(app)
@@ -19,28 +18,6 @@ def load(path):
     mod  = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
-
-
-# ── Token Validation Middleware ───────────────────────────────────────────────
-
-SKIP_AUTH = {"/", "/favicon.ico", "/api/token", "/api/debug"}
-
-@app.before_request
-def check_token():
-    """Validasi token untuk semua /api/* kecuali /api/token dan /api/debug."""
-    path = request.path
-
-    # Skip non-API dan route publik
-    if path in SKIP_AUTH or not path.startswith("/api/"):
-        return None
-
-    # Skip jika serving static files
-    if not path.startswith("/api/"):
-        return None
-
-    token = request.headers.get("x-api-token", "")
-    if not validate_token(token):
-        return jsonify({"error": "Token tidak valid atau kedaluwarsa"}), 401
 
 
 # ── Static ────────────────────────────────────────────────────────────────────
@@ -58,13 +35,6 @@ def static_files(filename):
     if os.path.exists(filename):
         return send_file(filename)
     return "404 Not Found", 404
-
-
-# ── /api/token ────────────────────────────────────────────────────────────────
-
-@app.route("/api/token")
-def token():
-    return jsonify(generate_token())
 
 
 # ── /api/debug ────────────────────────────────────────────────────────────────
@@ -190,8 +160,10 @@ def imdb():
         if action == "stream":
             media_type = "tv" if info.get("type") == "series" else "movie"
             raw_url    = mod.get_fast_stream(imdb_id, media_type)
-            # CDN punya CORS *, browser fetch langsung
-            info["stream_url"] = raw_url
+            if raw_url:
+                host = request.host
+                protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
+                info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
             info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
         return jsonify({"status": "success", **info})

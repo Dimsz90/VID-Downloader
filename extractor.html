@@ -3,13 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="description" content="StreamVault — Universal stream extractor & player with subtitle support.">
-<meta name="theme-color" content="#ff3c5f">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <title>StreamVault</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -622,8 +615,7 @@ footer {
   <div class="logo">
     STREAM<div class="logo-dot"></div><span>VAULT</span>
   </div>
-  <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
-    <a href="/" style="text-decoration: none; font-family: var(--mono); font-size: 11px; color: var(--text2); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; transition: color 0.2s;">Browse Film ⮑</a>
+  <div class="header-right">
     <div class="ver-tag">v2.2</div>
   </div>
 </header>
@@ -633,7 +625,7 @@ footer {
 ════════════════════════════ -->
 <main>
   <div class="hero">
-    <div class="hero-eyebrow"></div>
+    <div class="hero-eyebrow">UNIVERSAL STREAM EXTRACTOR</div>
     <div class="search-title">
       SCAN &amp; <span class="hi">STREAM</span><br>
       <span class="dim">ANYTHING</span>
@@ -642,7 +634,7 @@ footer {
     <div class="search-wrap">
       <div class="search-row">
         <input id="urlInput" type="url"
-          placeholder="imdb.com/title/tt... · URL halaman lain"
+          placeholder="imdb.com/title/tt... · vidgf.com/d/... · URL halaman lain"
           autocomplete="off" spellcheck="false">
         <button class="btn-go" id="btnGo" onclick="handleSubmit()">SCAN</button>
       </div>
@@ -831,26 +823,9 @@ const LANGS = [
   { code: "es",    label: "ESP" },
 ];
 
-/* ─── Token ─── */
-let _token = null, _tokenExp = 0;
-
-async function getToken() {
-  if (_token && Date.now() < _tokenExp - 5000) return _token;
-  try {
-    const r = await fetch(`${API}/api/token`);
-    const d = await r.json();
-    _token    = d.token;
-    _tokenExp = Date.now() + d.expires_in * 1000;
-    return _token;
-  } catch { return null; }
-}
-
+/* ─── API Helper ─── */
 async function apiFetch(url, opt = {}) {
-  const token = await getToken();
-  return fetch(url, {
-    ...opt,
-    headers: { ...(opt.headers || {}), "x-api-token": token || "" },
-  });
+  return fetch(url, opt);
 }
 
 /* ─── SPA ─── */
@@ -1479,11 +1454,6 @@ function dlItem(i) {
   const a = document.createElement("a");
   a.href = v.url; a.download = (v.title || "video") + ".mp4"; a.target = "_blank";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-}
-</script>
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
 </body>

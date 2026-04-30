@@ -12,6 +12,8 @@
 <title>StreamVault – Browse Film</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -22,6 +24,7 @@
   --mono:'Space Mono',monospace;
   --display:'Bebas Neue',sans-serif;
   --body:'DM Sans',sans-serif;
+  --plyr-color-main: #ff3c5f;
 }
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--text);font-family:var(--body);display:flex;flex-direction:column}
@@ -103,6 +106,56 @@ nav{
 .grid-wrap::-webkit-scrollbar-track{background:transparent}
 .grid-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .movie-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+
+/* ── RECOMMENDATION ROWS ── */
+.reco-section{margin-bottom:1.6rem}
+.reco-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:.6rem;
+}
+.reco-title{
+  font-family:var(--display);font-size:20px;letter-spacing:1px;
+  color:var(--text);display:flex;align-items:center;gap:8px;
+}
+.reco-title .reco-icon{font-size:16px}
+.reco-badge{
+  font-size:9px;font-family:var(--mono);color:var(--accent);
+  background:rgba(255,60,95,.1);border:1px solid rgba(255,60,95,.2);
+  padding:2px 8px;border-radius:12px;
+}
+.reco-row{
+  display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;
+  scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
+  scroll-behavior:smooth;
+}
+.reco-row::-webkit-scrollbar{height:4px}
+.reco-row::-webkit-scrollbar-track{background:transparent}
+.reco-row::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.reco-card{
+  flex-shrink:0;width:130px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:9px;overflow:hidden;cursor:pointer;
+  transition:all .25s;animation:fu .3s ease both;
+}
+.reco-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 6px 20px rgba(255,60,95,.12)}
+.reco-card .card-poster{width:100%;aspect-ratio:2/3;position:relative;overflow:hidden;background:var(--surface2);display:flex;align-items:center;justify-content:center}
+.reco-card .card-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.reco-card .card-info{padding:6px 8px}
+.reco-card .card-title{font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.reco-card .card-year{font-size:9px;font-family:var(--mono);color:var(--text3)}
+.reco-skeleton{
+  flex-shrink:0;width:130px;border-radius:9px;
+  background:var(--surface);border:1px solid var(--border);
+  overflow:hidden;
+}
+.reco-skeleton .skel-poster{width:100%;aspect-ratio:2/3;background:linear-gradient(110deg,var(--surface2) 8%,var(--border) 18%,var(--surface2) 33%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+.reco-skeleton .skel-info{padding:8px}
+.reco-skeleton .skel-line{height:10px;border-radius:4px;background:var(--surface2);margin-bottom:4px}
+.reco-skeleton .skel-line.short{width:60%}
+@keyframes shimmer{to{background-position:-200% 0}}
+
+#recoArea{padding:0}
+#searchResultArea{display:none}
 
 .movie-card{
   background:var(--surface);border:1px solid var(--border);
@@ -241,10 +294,14 @@ nav{
   font-family:var(--mono);cursor:pointer;transition:background .15s;
 }
 .pbtn:hover{background:rgba(255,255,255,.2)}
-#mainVideo{
-  width:100vw;height:100vh;object-fit:contain;
+#videoContainer {
+  width:100vw;height:100vh;
   position:absolute;top:0;left:0;z-index:201;background:#000;display:none;
 }
+#mainVideo{
+  width:100%;height:100%;object-fit:contain;
+}
+.plyr { width: 100%; height: 100%; }
 #mainVideo::cue{
   background:rgba(0,0,0,.78);color:#fff;
   font-family:var(--body);font-size:1.05em;
@@ -416,12 +473,24 @@ nav{
 
 <!-- ── GRID ── -->
 <div class="grid-wrap">
-  <div class="movie-grid" id="movieGrid">
-    <div class="empty">
-      <h3>CARI FILM</h3>
-      <p>Ketik judul di kotak pencarian di atas.<br>Data diambil langsung dari IMDB secara real-time.</p>
-    </div>
+
+  <!-- Recommendation area (shown by default) -->
+  <div id="recoArea">
+    <div class="reco-section" id="recoTrending"></div>
+    <div class="reco-section" id="recoNowPlay"></div>
+    <div class="reco-section" id="recoAction"></div>
+    <div class="reco-section" id="recoComedy"></div>
+    <div class="reco-section" id="recoDrama"></div>
+    <div class="reco-section" id="recoAnime"></div>
+    <div class="reco-section" id="recoHorror"></div>
+    <div class="reco-section" id="recoTV"></div>
   </div>
+
+  <!-- Search results (shown when user searches) -->
+  <div id="searchResultArea">
+    <div class="movie-grid" id="movieGrid"></div>
+  </div>
+
 </div>
 
 <!-- ── DETAIL PANEL ── -->
@@ -471,7 +540,9 @@ nav{
     <p id="pErrTxt">Stream tidak tersedia.</p>
     <button class="pbtn" style="margin-top:8px" onclick="closePlayer()">← KEMBALI</button>
   </div>
-  <video id="mainVideo" controls autoplay playsinline></video>
+  <div id="videoContainer">
+    <video id="mainVideo" controls autoplay playsinline crossorigin="anonymous"></video>
+  </div>
   <iframe id="playerFrame"
     allowfullscreen
     allow="autoplay; fullscreen; picture-in-picture"
@@ -510,8 +581,13 @@ nav{
 /* ═══════════════════════════════════════
    CONFIG — sesuaikan jika perlu
 ═══════════════════════════════════════ */
-const IMDB_API   = "https://imdb.iamidiotareyoutoo.com"; // API publik IMDB
-const STREAM_API = "";   // "" = relative (sama server), atau isi URL backend kamu
+const IMDB_API   = "https://imdb.iamidiotareyoutoo.com";
+const STREAM_API = "";
+
+/* TMDb API — daftar gratis di https://www.themoviedb.org/settings/api */
+const TMDB_KEY   = "b354b15ec55ecfd9b1d511617d1e0688";
+const TMDB_BASE  = "https://api.themoviedb.org/3";
+const TMDB_IMG   = "https://image.tmdb.org/t/p/w300";
 
 /* ═══════════════════════════════════════
    STATE
@@ -521,6 +597,7 @@ let currentType  = "all";
 let currentGenre = "all";
 let selectedItem = null;
 let hlsInst      = null;
+let plyrInst     = null;
 let barTimer     = null;
 
 /* Subtitle state */
@@ -536,26 +613,9 @@ const LANGS = [
   { code: "es",    label: "ESP" },
 ];
 
-/* ─── Token Auth ─── */
-let _token = null, _tokenExp = 0;
-
-async function getToken() {
-  if (_token && Date.now() < _tokenExp - 5000) return _token;
-  try {
-    const r = await fetch(`${STREAM_API}/api/token`);
-    const d = await r.json();
-    _token    = d.token;
-    _tokenExp = Date.now() + d.expires_in * 1000;
-    return _token;
-  } catch { return null; }
-}
-
+/* ─── API Helper ─── */
 async function apiFetch(url, opt = {}) {
-  const token = await getToken();
-  return fetch(url, {
-    ...opt,
-    headers: { ...(opt.headers || {}), "x-api-token": token || "" },
-  });
+  return fetch(url, opt);
 }
 
 /* ═══════════════════════════════════════
@@ -661,7 +721,16 @@ function setStatus(show, txt) {
 
 async function doSearch() {
   const q = document.getElementById("searchInput").value.trim();
-  if (!q) return;
+  if (!q) {
+    // Show reco area, hide search results
+    document.getElementById("recoArea").style.display = "";
+    document.getElementById("searchResultArea").style.display = "none";
+    return;
+  }
+
+  // Show search results, hide reco
+  document.getElementById("recoArea").style.display = "none";
+  document.getElementById("searchResultArea").style.display = "block";
 
   document.getElementById("btnSearch").disabled = true;
   setStatus(true, `Mencari "${q}"...`);
@@ -701,10 +770,143 @@ document.getElementById("searchInput")
   .addEventListener("keydown", e => e.key === "Enter" && doSearch());
 
 /* ═══════════════════════════════════════
+   RECOMMENDATION SYSTEM (TMDb API)
+═══════════════════════════════════════ */
+const RECO_CATEGORIES = [
+  { id: "recoTrending", icon: "🔥", title: "TRENDING HARI INI",     badge: "POPULER",  endpoint: "/trending/all/day" },
+  { id: "recoNowPlay",  icon: "🎬", title: "SEDANG TAYANG",         badge: "BIOSKOP",  endpoint: "/movie/now_playing" },
+  { id: "recoAction",   icon: "💥", title: "ACTION & ADVENTURE",   badge: "TOP",      endpoint: "/discover/movie?with_genres=28,12&sort_by=popularity.desc" },
+  { id: "recoComedy",   icon: "😂", title: "KOMEDI",                badge: "HIBURAN",  endpoint: "/discover/movie?with_genres=35&sort_by=popularity.desc" },
+  { id: "recoDrama",    icon: "🎭", title: "DRAMA TERBAIK",         badge: "PILIHAN",  endpoint: "/discover/movie?with_genres=18&sort_by=vote_average.desc&vote_count.gte=500" },
+  { id: "recoAnime",    icon: "⚡", title: "ANIME & ANIMATION",    badge: "OTAKU",    endpoint: "/discover/movie?with_genres=16&sort_by=popularity.desc" },
+  { id: "recoHorror",   icon: "👻", title: "HORROR & THRILLER",    badge: "SERAM",    endpoint: "/discover/movie?with_genres=27,53&sort_by=popularity.desc" },
+  { id: "recoTV",       icon: "📺", title: "SERIAL TV POPULER",     badge: "BINGE",    endpoint: "/tv/popular" },
+];
+
+/** Convert TMDb item to our internal IMDB-like format */
+function tmdbToLocal(item) {
+  const isTV = item.media_type === "tv" || (item.name && !item.title);
+  return {
+    "#TITLE":       item.title || item.name || "Untitled",
+    "#YEAR":        (item.release_date || item.first_air_date || "").substring(0, 4),
+    "#IMDB_ID":     null,
+    "#IMG_POSTER":  item.poster_path ? TMDB_IMG + item.poster_path : "",
+    "#IMDB_RATING": item.vote_average ? item.vote_average.toFixed(1) : "",
+    "#TYPE":        isTV ? "tvseries" : "movie",
+    "#DESCRIPTION": item.overview || "",
+    "#AKA":         item.original_title || item.original_name || "",
+    "#GENRE":       "",
+    "_tmdb_id":     item.id,
+    "_tmdb_type":   isTV ? "tv" : "movie",
+  };
+}
+
+function renderRecoSkeleton(containerId, title, icon, badge) {
+  const el = document.getElementById(containerId);
+  const skels = Array(8).fill(0).map(() => `
+    <div class="reco-skeleton">
+      <div class="skel-poster"></div>
+      <div class="skel-info">
+        <div class="skel-line"></div>
+        <div class="skel-line short"></div>
+      </div>
+    </div>
+  `).join("");
+  el.innerHTML = `
+    <div class="reco-header">
+      <div class="reco-title"><span class="reco-icon">${icon}</span> ${title}</div>
+      <div class="reco-badge">${badge}</div>
+    </div>
+    <div class="reco-row">${skels}</div>
+  `;
+}
+
+function renderRecoCards(containerId, title, icon, badge, items) {
+  const el = document.getElementById(containerId);
+  const cards = items.slice(0, 20).map((m, i) => {
+    const t   = m["#TITLE"]      || "Untitled";
+    const yr  = m["#YEAR"]       || "";
+    const img = m["#IMG_POSTER"] || "";
+    const rat = m["#IMDB_RATING"]|| "";
+    const type = (m["#TYPE"] || "movie").toLowerCase();
+    const typeLabel = type === "tvseries" ? "SERIAL" : "FILM";
+    const typeClass = type === "tvseries" ? "type-series" : "type-movie";
+    // Escape the JSON for inline onclick
+    const dataAttr = esc(JSON.stringify(m));
+    return `
+      <div class="reco-card" style="animation-delay:${Math.min(i*40,600)}ms" onclick='openDetail(JSON.parse(this.dataset.m))' data-m="${dataAttr}">
+        <div class="card-poster">
+          ${img
+            ? `<img src="${esc(img)}" alt="${esc(t)}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=no-img-icon>🎬</div>'">`
+            : `<div class="no-img-icon">🎬</div>`
+          }
+          ${rat ? `<div class="card-rating">★ ${esc(rat)}</div>` : ""}
+          <div class="card-type-badge ${typeClass}">${typeLabel}</div>
+        </div>
+        <div class="card-info">
+          <div class="card-title" title="${esc(t)}">${esc(t)}</div>
+          <div class="card-year">${esc(String(yr))}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+  el.innerHTML = `
+    <div class="reco-header">
+      <div class="reco-title"><span class="reco-icon">${icon}</span> ${title}</div>
+      <div class="reco-badge">${badge}</div>
+    </div>
+    <div class="reco-row">${cards}</div>
+  `;
+}
+
+async function fetchRecoCategory(cat) {
+  try {
+    const sep = cat.endpoint.includes("?") ? "&" : "?";
+    const url = `${TMDB_BASE}${cat.endpoint}${sep}api_key=${TMDB_KEY}&language=id-ID&page=1`;
+    const r = await fetch(url);
+    if (!r.ok) return;
+    const raw = await r.json();
+    const results = (raw.results || []).filter(i => i.poster_path);
+    if (results.length > 0) {
+      const items = results.map(tmdbToLocal);
+      renderRecoCards(cat.id, cat.title, cat.icon, cat.badge, items);
+    }
+  } catch(e) { /* silently fail */ }
+}
+
+async function loadRecommendations() {
+  if (!TMDB_KEY) return;
+  RECO_CATEGORIES.forEach(cat => renderRecoSkeleton(cat.id, cat.title, cat.icon, cat.badge));
+  await Promise.allSettled(RECO_CATEGORIES.map(cat => fetchRecoCategory(cat)));
+}
+
+loadRecommendations();
+
+/* ═══════════════════════════════════════
    DETAIL PANEL
 ═══════════════════════════════════════ */
 async function openDetail(m) {
   selectedItem = m;
+
+  // If item came from TMDb and has no IMDB ID yet, resolve it
+  if (!m["#IMDB_ID"] && m._tmdb_id && TMDB_KEY) {
+    try {
+      const tmdbType = m._tmdb_type || "movie";
+      const r = await fetch(`${TMDB_BASE}/${tmdbType}/${m._tmdb_id}/external_ids?api_key=${TMDB_KEY}`);
+      const d = await r.json();
+      if (d.imdb_id) m["#IMDB_ID"] = d.imdb_id;
+    } catch {}
+    // Also fetch full details for genre info
+    try {
+      const tmdbType = m._tmdb_type || "movie";
+      const r = await fetch(`${TMDB_BASE}/${tmdbType}/${m._tmdb_id}?api_key=${TMDB_KEY}&language=id-ID`);
+      const d = await r.json();
+      if (d.genres) m["#GENRE"] = d.genres.map(g => g.name).join(", ");
+      if (d.overview) m["#DESCRIPTION"] = d.overview;
+      if (d.imdb_id) m["#IMDB_ID"] = d.imdb_id;
+    } catch {}
+    selectedItem = m;
+  }
 
   const id     = m["#IMDB_ID"]      || "";
   const title  = m["#TITLE"]        || "Untitled";
@@ -858,17 +1060,12 @@ async function startStream() {
     `${title}${selectedItem["#YEAR"] ? " (" + selectedItem["#YEAR"] + ")" : ""}`;
 
   try {
-    // Panggil streaming API langsung dari browser (CORS *)
-    // Ini menghindari blokir IP datacenter Vercel
-    const streamRes = await fetch(
-      `https://streamdata.vaplayer.ru/api.php?imdb=${id}&type=${type}`
-    );
+    // Panggil backend API kita untuk mendapatkan stream_url yang sudah di-proxy
+    const streamRes = await apiFetch(`${STREAM_API}/api/imdb?id=${id}&action=stream`);
     const streamData = await streamRes.json();
-    const streams = (streamData.data || {}).stream_urls || [];
 
-    if (streams.length > 0) {
-      const streamUrl = streams[0].replace(/\\\//g, "/");
-      playHls(streamUrl);
+    if (streamData.stream_url) {
+      playHls(streamData.stream_url);
     } else {
       showPError("Stream tidak tersedia untuk film ini.");
     }
@@ -878,17 +1075,43 @@ async function startStream() {
 }
 
 /* ── HLS Player (native only, no iframe) ── */
+function updateQuality(newQuality) {
+  if (!hlsInst) return;
+  hlsInst.levels.forEach((level, levelIndex) => {
+    if (level.height === newQuality) {
+      hlsInst.currentLevel = levelIndex;
+    }
+  });
+}
+
 function playHls(streamUrl) {
   const v = document.getElementById("mainVideo");
+  const vc = document.getElementById("videoContainer");
   if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
+  if (plyrInst) { plyrInst.destroy(); plyrInst = null; }
 
-  if (Hls.isSupported()) {
+  const isM3u8 = streamUrl.toLowerCase().includes('.m3u8') || streamUrl.includes('mpegurl');
+  const defaultOptions = {
+    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+    settings: ['captions', 'quality', 'speed'],
+    captions: { active: true, update: true }
+  };
+
+  if (isM3u8 && Hls.isSupported()) {
     hlsInst = new Hls({ maxBufferLength: 30, manifestLoadingTimeOut: 10000, levelLoadingTimeOut: 10000 });
     hlsInst.loadSource(streamUrl);
     hlsInst.attachMedia(v);
     hlsInst.on(Hls.Events.MANIFEST_PARSED, () => {
       hidePOverlays();
-      v.style.display = "block";
+      vc.style.display = "block";
+      const availableQualities = hlsInst.levels.map((l) => l.height);
+      defaultOptions.quality = {
+        default: availableQualities[0],
+        options: availableQualities,
+        forced: true,
+        onChange: (e) => updateQuality(e),
+      };
+      plyrInst = new Plyr(v, defaultOptions);
       v.play().catch(() => {});
     });
     hlsInst.on(Hls.Events.ERROR, (e, d) => {
@@ -897,23 +1120,25 @@ function playHls(streamUrl) {
         showPError("Gagal memutar stream. CDN mungkin sedang bermasalah.");
       }
     });
-  } else if (v.canPlayType("application/vnd.apple.mpegurl")) {
+  } else {
+    // Play natively (MP4, WebM, or native Safari HLS)
     v.src = streamUrl;
+    plyrInst = new Plyr(v, defaultOptions);
     v.addEventListener("loadedmetadata", () => {
-      hidePOverlays(); v.style.display = "block"; v.play().catch(() => {});
+      hidePOverlays(); 
+      vc.style.display = "block"; 
+      v.play().catch(() => {});
     }, { once: true });
     v.addEventListener("error", () => {
-      showPError("Browser tidak bisa memutar stream ini.");
+      showPError("Browser tidak bisa memutar stream ini secara langsung.");
     }, { once: true });
-  } else {
-    showPError("Browser ini tidak mendukung HLS streaming.");
   }
 }
 
 /* ── Error display ── */
 function showPError(msg) {
   hidePOverlays();
-  document.getElementById("mainVideo").style.display = "none";
+  document.getElementById("videoContainer").style.display = "none";
   const errDiv = document.getElementById("pError");
   document.getElementById("pErrTxt").textContent = msg;
   errDiv.classList.remove("hidden");
@@ -924,7 +1149,7 @@ function showPLoading(txt) {
   document.getElementById("pError").classList.add("hidden");
   document.getElementById("pLoading").classList.remove("hidden");
   document.getElementById("pLoadTxt").textContent = txt;
-  document.getElementById("mainVideo").style.display   = "none";
+  document.getElementById("videoContainer").style.display   = "none";
   document.getElementById("playerFrame").style.display = "none";
 }
 function hidePOverlays() {
@@ -936,11 +1161,13 @@ function hidePOverlays() {
 function closePlayer() {
   document.getElementById("playerMode").style.display = "none";
   const v = document.getElementById("mainVideo");
-  v.pause(); v.src = ""; v.style.display = "none";
+  const vc = document.getElementById("videoContainer");
+  v.pause(); v.src = ""; vc.style.display = "none";
   Array.from(v.querySelectorAll("track")).forEach(t => t.remove());
   const f = document.getElementById("playerFrame");
   f.src = ""; f.style.display = "none";
   if (hlsInst) { hlsInst.destroy(); hlsInst = null; }
+  if (plyrInst) { plyrInst.destroy(); plyrInst = null; }
   document.getElementById("pLoading").classList.remove("hidden");
   document.getElementById("pError").classList.add("hidden");
   document.getElementById("subPanelBrowse").classList.remove("visible");
@@ -1144,8 +1371,14 @@ function applyVttToVideo(vttUrl, lang) {
   track.default = true;
   video.appendChild(track);
   setTimeout(() => {
-    if (video.textTracks.length > 0) video.textTracks[0].mode = "showing";
-  }, 100);
+    Array.from(video.textTracks).forEach(t => {
+      if (t.label === lang.toUpperCase() || t.language === lang) {
+        t.mode = "showing";
+      } else {
+        t.mode = "hidden";
+      }
+    });
+  }, 150);
 }
 
 /** Parse SRT string into cue objects [{start, end, text}] */

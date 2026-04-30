@@ -16,8 +16,7 @@ OS_HEADERS = {
 # ── OMDb ──────────────────────────────────────────────────────────────────────
 OMDB_KEYS = os.environ.get("OMDB_KEYS", "trilogy,thewdb").split(",")
 
-# ── Token / Auth ──────────────────────────────────────────────────────────────
-API_SECRET = os.environ.get("API_SECRET", "changeme")
+
 
 # ── HTTP Headers ──────────────────────────────────────────────────────────────
 HEADERS = {
@@ -27,8 +26,8 @@ HEADERS = {
 }
 
 VIDEO_SPOOF_HEADERS = {
-    "Origin":     "https://cloudnestra.com",
-    "Referer":    "https://cloudnestra.com/",
+    "Origin":     "https://brightpathsignals.com",
+    "Referer":    "https://brightpathsignals.com/",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
 }
