@@ -1,1 +1,1 @@
-web: PYTHONPATH=/app python server.py
+web: PYTHONPATH=/app:/app/api python server.py
