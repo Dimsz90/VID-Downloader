@@ -432,7 +432,10 @@ nav{
     <div class="ntab"        id="ntMovie"  onclick="setNTab('movie')">Film</div>
     <div class="ntab"        id="ntSeries" onclick="setNTab('tvseries')">Serial</div>
   </div>
-  <div class="header-right" style="margin-left: auto;">
+  <div class="header-right" style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+    <button id="btnInstallPwa" style="display: none; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: var(--display); letter-spacing: 1px; font-size: 14px; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+      + INSTALL APP
+    </button>
     <a href="/extractor.html" style="text-decoration: none; font-family: var(--mono); font-size: 11px; font-weight: bold; color: #fff; background: var(--accent); border: 1px solid var(--accent2); padding: 8px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; box-shadow: 0 0 10px rgba(255, 60, 95, 0.3);">
       🔗 BUKA EXTRACTOR
     </a>
@@ -1458,10 +1461,39 @@ function srtToVtt(srt) {
     .trim();
 }
 </script>
+</script>
 <script>
+/* ── PWA & Service Worker ── */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
+
+let deferredPrompt;
+const btnInstall = document.getElementById('btnInstallPwa');
+
+// Tangkap event saat browser siap memunculkan prompt install
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Munculkan tombol install PWA di nav
+  btnInstall.style.display = 'block';
+});
+
+btnInstall.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      btnInstall.style.display = 'none';
+    }
+    deferredPrompt = null;
+  }
+});
+
+// Sembunyikan tombol kalau sudah diinstall
+window.addEventListener('appinstalled', () => {
+  btnInstall.style.display = 'none';
+});
 </script>
 </body>
 </html>
