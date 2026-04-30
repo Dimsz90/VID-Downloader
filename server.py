@@ -1,118 +1,297 @@
 """
-server.py — Entry point untuk Railway
-Menggantikan Vercel serverless, jalan sebagai HTTP server biasa.
+server.py — Production Entry Point untuk Railway
+Berbasis Flask, mengintegrasikan seluruh fitur dari dev.py
 """
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import os, sys, mimetypes
+import os, sys, importlib.util, re, tempfile, mimetypes, traceback
+from urllib.parse import quote, urljoin
+from flask import Flask, send_file, request, jsonify, Response
+from flask_cors import CORS
 
-# Pastikan folder api/ bisa di-import
+# Fallback path (meskipun sudah diatur di Procfile, ini menjaga agar tetap bisa di-run lokal)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from api.imdb import handler as ImdbHandler
-from api.index import handler as IndexHandler
+app = Flask(__name__)
+CORS(app)
 
-PORT = int(os.environ.get("PORT", 8000))
+PORT = int(os.environ.get("PORT", 9000))
+
+def load(path):
+    """Fungsi pembantu untuk me-load modul secara dinamis dari path file"""
+    spec = importlib.util.spec_from_file_location("mod", path)
+    mod  = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+# ── 1. STATIC FILES & SPA ROUTING ─────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    return send_file("index.html")
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
+
+@app.route("/<path:filename>")
+def static_files(filename):
+    # 1. Coba cari file di root folder (misal: extractor.html)
+    if os.path.exists(filename):
+        return send_file(filename)
+    
+    # 2. Coba cari file di dalam folder public/ (misal: manifest.json, sw.js, icons/)
+    public_path = os.path.join("public", filename)
+    if os.path.exists(public_path):
+        return send_file(public_path)
+    
+    # 3. Fallback untuk SPA (Single Page Application)
+    # Jika request bukan untuk API, arahkan kembali ke index.html
+    if not request.path.startswith('/api/'):
+        if os.path.exists("index.html"):
+            return send_file("index.html")
+    
+    return jsonify({"error": "Not Found"}), 404
 
 
-class MainHandler(BaseHTTPRequestHandler):
+# ── 2. API ROUTES (Berdasarkan dev.py) ────────────────────────────────────────
 
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self._cors()
-        self.end_headers()
-
-    def do_GET(self):
-        path = self.path.split("?")[0]
-
-        # Route API ke handler yang sesuai
-        if "/api/imdb-proxy" in path or "/api/imdb" in path or "/api/proxy" in path:
-            self._delegate(ImdbHandler)
-        elif path.startswith("/api/"):
-            self._delegate(IndexHandler)
-        else:
-            self._serve_static(path)
-
-    def _delegate(self, HandlerClass):
-        """Delegate request ke handler class tertentu."""
-        h = HandlerClass.__new__(HandlerClass)
-        h.path    = self.path
-        h.headers = self.headers
-        h.wfile   = self.wfile
-        h.rfile   = self.rfile
-        h.server  = self.server
-        h.request = self.request
-        h.client_address = self.client_address
-        HandlerClass.do_GET(h)
-
-    def _serve_static(self, path):
-        # Map URL path ke file system
-        static_routes = {
-            "/manifest.json": "public/manifest.json",
-            "/sw.js":         "public/sw.js",
-        }
-
-        if path in static_routes:
-            file_path = static_routes[path]
-        elif path.startswith("/icons/"):
-            file_path = "public" + path
-        elif path.startswith("/screenshots/"):
-            file_path = "public" + path
-        elif path == "/" or path == "":
-            file_path = "index.html"
-        elif path == "/extractor.html":
-            file_path = "extractor.html"
-        else:
-            # SPA fallback → index.html
-            file_path = "index.html"
-
-        self._send_file(file_path)
-
-    def _send_file(self, file_path):
+@app.route("/api/debug")
+def debug():
+    results = {"python": sys.version, "env": "production (railway)"}
+    for pkg in ["requests", "bs4", "yt_dlp", "playwright"]:
         try:
-            with open(file_path, "rb") as f:
-                content = f.read()
+            mod = __import__(pkg)
+            results[pkg] = f"OK ({getattr(mod, '__version__', '?')})"
+        except ImportError as e:
+            results[pkg] = f"MISSING: {e}"
+    return jsonify(results)
 
-            mime, _ = mimetypes.guess_type(file_path)
-            mime = mime or "application/octet-stream"
+@app.route("/api/get-video")
+def get_video():
+    video_id = request.args.get("id", "").strip()
+    if not video_id:
+        return jsonify({"status": "error", "message": "ID kosong"}), 400
+    if "/" in video_id:
+        video_id = video_id.strip("/").split("/")[-1].split("?")[0]
 
-            self.send_response(200)
-            self._cors()
-            self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(content)))
-            # Cache static assets
-            if any(file_path.endswith(ext) for ext in [".png", ".ico", ".css", ".js"]):
-                self.send_header("Cache-Control", "public, max-age=86400")
-            self.end_headers()
-            self.wfile.write(content)
+    try:
+        from lib import vidgf
+        url = vidgf.extract(video_id)
+        if url:
+            return jsonify({"status": "success", "link": url, "id": video_id})
+        return jsonify({"status": "error", "message": "Tidak ditemukan"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        except FileNotFoundError:
-            # Fallback ke index.html untuk SPA routing
-            try:
-                with open("index.html", "rb") as f:
-                    content = f.read()
-                self.send_response(200)
-                self._cors()
-                self.send_header("Content-Type", "text/html")
-                self.send_header("Content-Length", str(len(content)))
-                self.end_headers()
-                self.wfile.write(content)
-            except Exception:
-                self.send_response(404)
-                self.end_headers()
-                self.wfile.write(b"404 Not Found")
+@app.route("/api/scan", methods=["POST"])
+def scan():
+    data = request.get_json() or {}
+    url  = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    try:
+        mod    = load("api/scan.py")
+        videos = mod.extract(url)
+        return jsonify({"videos": videos, "count": len(videos)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    def _cors(self):
-        self.send_header("Access-Control-Allow-Origin",  "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+@app.route("/api/formats", methods=["POST"])
+def formats():
+    data = request.get_json() or {}
+    url  = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    try:
+        mod = load("api/formats.py")
+        title, thumb, fmts = mod.get_formats(url)
+        return jsonify({"title": title, "thumb": thumb, "formats": fmts})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    def log_message(self, format, *args):
-        print(f"[{self.address_string()}] {format % args}", flush=True)
+@app.route("/api/download", methods=["POST"])
+def download():
+    data      = request.get_json() or {}
+    url       = data.get("url", "").strip()
+    format_id = data.get("format_id", "bestvideo+bestaudio/best")
+    title     = data.get("title", "video")
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    try:
+        import yt_dlp
+    except ImportError:
+        return jsonify({"error": "yt-dlp tidak terinstall"}), 500
 
+    with tempfile.TemporaryDirectory() as tmpdir:
+        opts = {
+            "format": format_id,
+            "outtmpl": os.path.join(tmpdir, "%(title)s.%(ext)s"),
+            "quiet": True,
+            "merge_output_format": "mp4",
+        }
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([url])
+            files = os.listdir(tmpdir)
+            if not files:
+                return jsonify({"error": "Download gagal"}), 500
+            
+            filepath   = os.path.join(tmpdir, files[0])
+            ext        = os.path.splitext(files[0])[1]
+            safe       = re.sub(r'[^\w\s-]', '', title)[:60].strip() or "video"
+            fname      = f"{safe}{ext}"
+            mime       = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
+            
+            with open(filepath, "rb") as f:
+                data_bytes = f.read()
+                
+            return Response(data_bytes, headers={
+                "Content-Type":        mime,
+                "Content-Disposition": f'attachment; filename="{fname}"',
+                "Content-Length":      str(len(data_bytes)),
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+@app.route("/api/imdb")
+def imdb_api():
+    raw_id = request.args.get("id", "").strip()
+    action = request.args.get("action", "info").strip()
+
+    if not raw_id:
+        return jsonify({"error": "Parameter ?id= diperlukan"}), 400
+
+    try:
+        mod = load("api/imdb.py")
+        imdb_id = mod.extract_imdb_id(raw_id)
+        if not imdb_id:
+            return jsonify({"error": f"IMDB ID tidak valid: {raw_id}"}), 400
+
+        info = mod.get_movie_info(imdb_id)
+
+        if action == "stream":
+            media_type = "tv" if info.get("type") == "series" else "movie"
+            raw_url    = mod.get_fast_stream(imdb_id, media_type)
+            if raw_url:
+                # Ambil protokol dari headers untuk mendeteksi HTTPS di balik proxy Railway
+                scheme = request.headers.get('X-Forwarded-Proto', 'http')
+                host = request.host
+                info["stream_url"] = f"{scheme}://{host}/api/proxy?url={quote(raw_url)}"
+            info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
+
+        return jsonify({"status": "success", **info})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/proxy")
+def proxy():
+    import requests as req
+    try:
+        from lib.config import VIDEO_SPOOF_HEADERS
+    except ImportError:
+        VIDEO_SPOOF_HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://imdb.com/"}
+
+    target_url = request.args.get("url", "").strip()
+    if not target_url:
+        return "Missing url param", 400
+
+    try:
+        resp = req.get(target_url, headers=VIDEO_SPOOF_HEADERS, stream=True, timeout=15)
+        content_type = resp.headers.get("Content-Type", "application/octet-stream")
+
+        if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
+            content = resp.text
+
+            def rewrite(m):
+                abs_link = urljoin(target_url, m.group(1))
+                return f"/api/proxy?url={quote(abs_link)}"
+
+            new_content = re.sub(r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE)
+            return Response(
+                new_content.encode(),
+                status=resp.status_code,
+                headers={
+                    "Content-Type":                content_type,
+                    "Access-Control-Allow-Origin": "*",
+                },
+            )
+
+        def generate():
+            for chunk in resp.iter_content(chunk_size=65536):
+                yield chunk
+
+        return Response(
+            generate(),
+            status=resp.status_code,
+            headers={
+                "Content-Type":                content_type,
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/subtitle/search")
+def subtitle_search():
+    imdb_id    = request.args.get("imdb_id", "").strip() or None
+    query      = request.args.get("query",   "").strip() or None
+    lang       = request.args.get("lang",    "en").strip()
+    media_type = request.args.get("type",    "movie").strip()
+
+    if not imdb_id and not query:
+        return jsonify({"status": "error", "error": "imdb_id atau query wajib diisi"}), 400
+
+    try:
+        sub = load("api/subtitle.py")
+        result = sub.search(
+            imdb_id    = imdb_id,
+            query      = query,
+            lang       = lang,
+            media_type = media_type,
+        )
+
+        status_code = 200 if result["status"] == "success" else 503
+        return jsonify(result), status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/subtitle/download")
+def subtitle_download():
+    file_id = request.args.get("file_id", "").strip()
+    if not file_id:
+        return jsonify({"error": "file_id wajib diisi"}), 400
+
+    try:
+        sub = load("api/subtitle.py")
+
+        # 1. Minta URL download dari OpenSubtitles
+        dl_url, err = sub.get_download_url(file_id)
+        if err:
+            return jsonify({"error": err}), 500
+
+        # 2. Download konten .srt dan proxy ke frontend
+        srt_text, err = sub.fetch_srt(dl_url)
+        if err:
+            return jsonify({"error": err}), 500
+
+        return Response(
+            srt_text.encode("utf-8"),
+            status=200,
+            headers={
+                "Content-Type":                "text/plain; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── RUN SERVER ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print(f"[SERVER] Starting on port {PORT}...", flush=True)
-    server = HTTPServer(("0.0.0.0", PORT), MainHandler)
-    print(f"[SERVER] Running at http://0.0.0.0:{PORT}", flush=True)
-    server.serve_forever()
+    print(f"[SERVER] Starting Production Server on port {PORT}...", flush=True)
+    # Debug diset False untuk production
+    app.run(host="0.0.0.0", port=PORT, debug=False)

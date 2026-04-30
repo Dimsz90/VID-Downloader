@@ -4,7 +4,7 @@ IMDB info, streaming, dan video proxy.
 Menggunakan shared library dari api/lib/.
 """
 from http.server import BaseHTTPRequestHandler
-import json, re, os, sys, requests, traceback
+import json, re, os, sys, requests
 from urllib.parse import urlparse, parse_qs, quote, urljoin
 
 # Pastikan api/lib bisa di-import
@@ -14,6 +14,7 @@ from lib.config import HEADERS, VIDEO_SPOOF_HEADERS, OMDB_KEYS
 from lib.cache import imdb_cache
 from lib import vidgf
 
+import traceback
 
 
 
