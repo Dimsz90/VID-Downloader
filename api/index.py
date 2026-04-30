@@ -8,6 +8,7 @@ import os
 import json
 import re
 import importlib
+import traceback
 from urllib.parse import urlparse, parse_qs
 
 # Tambah api/ ke path agar bisa import lib.*
@@ -106,6 +107,9 @@ class handler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             self._send_json({"error": f"Modul '{module_name}' tidak ditemukan"}, 404)
         except Exception as e:
+            print(f"[ERROR] Exception in _dispatch_module ({module_name}):", file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
             self._send_json({"error": f"Internal error: {e}"}, 500)
 
     # ── Utilities ─────────────────────────────────────────────────────────────
@@ -123,5 +127,5 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def log_message(self, *a):
-        pass
+    def log_message(self, format, *args):
+        print(f"[API] {self.address_string()} - {format % args}", flush=True)
