@@ -6,6 +6,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/imdb.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "*.html",
       "use": "@vercel/static"
     },
@@ -15,6 +19,18 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/imdb-proxy(.*)",
+      "dest": "api/imdb.py"
+    },
+    {
+      "src": "/api/imdb(.*)",
+      "dest": "api/imdb.py"
+    },
+    {
+      "src": "/api/proxy(.*)",
+      "dest": "api/imdb.py"
+    },
     {
       "src": "/api/(.*)",
       "dest": "api/index.py"
