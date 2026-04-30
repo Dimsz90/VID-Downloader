@@ -3,4 +3,3 @@ flask-cors
 requests
 hls-parser
 beautifulsoup4
-yt-dlp
