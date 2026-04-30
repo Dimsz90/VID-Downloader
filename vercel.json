@@ -29,6 +29,14 @@
       "dest": "api/index.py"
     },
     {
+      "src": "/icons/(.*)",
+      "dest": "/icons/$1"
+    },
+    {
+      "src": "/screenshots/(.*)",
+      "dest": "/screenshots/$1"
+    },
+    {
       "src": "/manifest.json",
       "dest": "/manifest.json"
     },
