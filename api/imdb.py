@@ -4,14 +4,17 @@ IMDB info, streaming, dan video proxy.
 Menggunakan shared library dari api/lib/.
 """
 from http.server import BaseHTTPRequestHandler
-import json, re, os, sys, requests
+import json, re, os, sys, requests, traceback
 from urllib.parse import urlparse, parse_qs, quote, urljoin
 
 # Pastikan api/lib bisa di-import
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from lib.config import HEADERS, VIDEO_SPOOF_HEADERS, OMDB_KEYS
 from lib.cache import imdb_cache
 from lib import vidgf
+
+
 
 
 # ═══════════════════════════════════════════════
@@ -96,43 +99,46 @@ class handler(BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
 
-    def do_GET(self):
+def do_GET(self):
+    try:
         parsed = urlparse(self.path)
         path   = parsed.path
         params = parse_qs(parsed.query)
 
-        # IMDB info + stream
-        if "/api/imdb" in path:
-            raw_id = (params.get("id",     [None])[0] or "").strip()
-            action = (params.get("action", ["info"])[0] or "info").strip()
+        # ── imdb-proxy HARUS duluan ──
+        if "/api/imdb-proxy" in path:
+            endpoint = (params.get("endpoint", [None])[0] or "").strip()
+            if not endpoint or not endpoint.startswith("/"):
+                return self.send_json({"error": "endpoint tidak valid"}, 400)
+            try:
+                target = f"https://imdb.iamidiotareyoutoo.com{endpoint}"
+                r = requests.get(target, headers=HEADERS, timeout=8)
+                body = r.content
+                self.send_response(r.status_code)
+                self._cors()
+                self.send_header("Content-Type", r.headers.get("Content-Type", "application/json"))
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as e:
+                self.send_json({"error": str(e)}, 500)
+            return
 
-            imdb_id = extract_imdb_id(raw_id)
-            if not imdb_id:
-                return self.send_json({"error": "ID tidak valid"}, 400)
-
-            info = get_movie_info(imdb_id)
-
-            if action == "stream":
-                m_type  = "tv" if info.get("type") == "series" else "movie"
-                raw_url = get_fast_stream(imdb_id, m_type)
-                if raw_url:
-                    # Membungkus link stream asli ke dalam route proxy lokal
-                    host = self.headers.get("Host", "")
-                    protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
-                    info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
-                info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
-
-            return self.send_json({"status": "success", **info})
-
-        # Proxy video / m3u8
+        # ── Proxy video / m3u8 ──
         if "/api/proxy" in path:
             target_url = params.get("url", [None])[0]
             if not target_url:
                 return self.send_error(400)
             try:
+                parsed_target = urlparse(target_url)
+                spoof = {
+                    **VIDEO_SPOOF_HEADERS,
+                    "Referer": f"{parsed_target.scheme}://{parsed_target.netloc}/",
+                    "Origin":  f"{parsed_target.scheme}://{parsed_target.netloc}",
+                }
                 resp = requests.get(
                     target_url,
-                    headers=VIDEO_SPOOF_HEADERS,
+                    headers=spoof,
                     stream=True,
                     timeout=15,
                 )
@@ -158,7 +164,29 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error(500)
             return
 
-        # Vidgf extractor (menggunakan shared lib)
+        # ── IMDB info + stream ──
+        if "/api/imdb" in path:
+            raw_id = (params.get("id",     [None])[0] or "").strip()
+            action = (params.get("action", ["info"])[0] or "info").strip()
+
+            imdb_id = extract_imdb_id(raw_id)
+            if not imdb_id:
+                return self.send_json({"error": "ID tidak valid"}, 400)
+
+            info = get_movie_info(imdb_id)
+
+            if action == "stream":
+                m_type  = "tv" if info.get("type") == "series" else "movie"
+                raw_url = get_fast_stream(imdb_id, m_type)
+                if raw_url:
+                    host = self.headers.get("Host", "")
+                    protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
+                    info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
+                info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
+
+            return self.send_json({"status": "success", **info})
+
+        # ── Vidgf extractor ──
         if "/api/get-video" in path:
             video_id = (params.get("id", [None])[0] or "").strip()
             if not video_id:
@@ -173,10 +201,14 @@ class handler(BaseHTTPRequestHandler):
 
         self.send_json({"error": "Route tidak ditemukan"}, 404)
 
+    except Exception as e:
+        tb = traceback.format_exc()
+        self.send_json({"error": str(e), "traceback": tb}, 500)
+
     # ── Utilities ──
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin",  "*")
-        self.send_header("Access    -Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def send_json(self, data, code=200):
