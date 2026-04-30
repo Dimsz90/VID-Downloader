@@ -11,6 +11,9 @@ from lib.config import HEADERS, VIDEO_SPOOF_HEADERS, OMDB_KEYS
 from lib.cache import imdb_cache
 from lib import vidgf
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════
 #  HELPERS
@@ -64,6 +67,7 @@ def get_fast_stream(imdb_id: str, media_type: str = "movie"):
     cache_key = f"stream:{imdb_id}:{media_type}"
     cached = imdb_cache.get(cache_key)
     if cached:
+        logger.info(f"[STREAM] Cache hit: {imdb_id}")
         return cached
 
     sources = [
@@ -79,19 +83,38 @@ def get_fast_stream(imdb_id: str, media_type: str = "movie"):
                 "Referer": f"{parsed.scheme}://{parsed.netloc}/",
                 "Origin":  f"{parsed.scheme}://{parsed.netloc}",
             }
-            r = requests.get(api_url, headers=spoof, timeout=5)
+            logger.info(f"[STREAM] Trying: {api_url}")
+            r = requests.get(api_url, headers=spoof, timeout=10)
+            logger.info(f"[STREAM] Status: {r.status_code} | URL: {api_url}")
+            logger.info(f"[STREAM] Response body: {r.text[:500]}")
+
             if r.status_code == 200:
-                data = r.json()
-                streams = data.get("data", {}).get("stream_urls", [])
-                if streams:
-                    url = streams[0].replace("\\/", "/")
-                    imdb_cache.set(cache_key, url, ttl=1800)
-                    return url
-        except Exception:
-            continue
+                try:
+                    data = r.json()
+                    logger.info(f"[STREAM] Parsed JSON keys: {list(data.keys())}")
+                    streams = data.get("data", {}).get("stream_urls", [])
+                    logger.info(f"[STREAM] Stream URLs found: {streams}")
+                    if streams:
+                        url = streams[0].replace("\\/", "/")
+                        imdb_cache.set(cache_key, url, ttl=1800)
+                        logger.info(f"[STREAM] Success: {url[:80]}")
+                        return url
+                    else:
+                        logger.warning(f"[STREAM] JSON ok tapi stream_urls kosong: {data}")
+                except Exception as je:
+                    logger.error(f"[STREAM] Gagal parse JSON: {je} | Raw: {r.text[:300]}")
+            else:
+                logger.warning(f"[STREAM] HTTP {r.status_code} dari {api_url} | Body: {r.text[:200]}")
+
+        except requests.exceptions.Timeout:
+            logger.error(f"[STREAM] TIMEOUT: {api_url}")
+        except requests.exceptions.ConnectionError as ce:
+            logger.error(f"[STREAM] CONNECTION ERROR: {api_url} | {ce}")
+        except Exception as e:
+            logger.error(f"[STREAM] ERROR: {api_url} | {type(e).__name__}: {e}")
+
+    logger.error(f"[STREAM] Semua source gagal untuk {imdb_id}")
     return None
-
-
 # ═══════════════════════════════════════════════
 #  HTTP HANDLER
 # ═══════════════════════════════════════════════
