@@ -59,12 +59,12 @@ class MainHandler(BaseHTTPRequestHandler):
         elif path.startswith("/screenshots/"):
             file_path = "public" + path
         elif path == "/" or path == "":
-            file_path = "index.html"
+            file_path = "public/index.html"
         elif path == "/extractor.html":
             file_path = "extractor.html"
         else:
             # SPA fallback → index.html
-            file_path = "index.html"
+            file_path = "public/index.html"
 
         self._send_file(file_path)
 
@@ -89,7 +89,7 @@ class MainHandler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             # Fallback ke index.html untuk SPA routing
             try:
-                with open("index.html", "rb") as f:
+                with open("public/index.html", "rb") as f:
                     content = f.read()
                 self.send_response(200)
                 self._cors()
