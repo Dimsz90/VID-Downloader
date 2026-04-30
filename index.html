@@ -967,7 +967,7 @@ function openImdb() {
 ═══════════════════════════════════════ */
 async function fetchProviders(imdbId) {
   try {
-    const r = await fetch(`${IMDB_API}/justwatch?q=${imdbId}`);
+    const r = await fetch(`/api/imdb-proxy?endpoint=/justwatch?q=${imdbId}`);
     if (!r.ok) return;
     const data = await r.json();
 
@@ -1002,7 +1002,7 @@ async function fetchProviders(imdbId) {
 ═══════════════════════════════════════ */
 async function fetchPhotos(imdbId) {
   try {
-    const r = await fetch(`${IMDB_API}/photo/${imdbId}`);
+    const r = await fetch(`/api/imdb-proxy?endpoint=/photo/${imdbId}`);
     if (!r.ok) return;
     const data = await r.json();
 
