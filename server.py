@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from api.imdb import handler as ImdbHandler
 from api.index import handler as IndexHandler
 
-PORT = int(os.environ.get("PORT", 8000))
+PORT = int(os.environ.get("PORT", 8080))
 
 
 class MainHandler(BaseHTTPRequestHandler):
