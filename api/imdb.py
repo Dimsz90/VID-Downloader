@@ -1,13 +1,10 @@
 """
 api/imdb.py
-IMDB info, streaming, dan video proxy.
-Menggunakan shared library dari api/lib/.
 """
 from http.server import BaseHTTPRequestHandler
 import json, re, os, sys, requests, traceback
 from urllib.parse import urlparse, parse_qs, quote, urljoin
 
-# Pastikan api/lib bisa di-import
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from lib.config import HEADERS, VIDEO_SPOOF_HEADERS, OMDB_KEYS
@@ -15,11 +12,6 @@ from lib.cache import imdb_cache
 from lib import vidgf
 
 
-
-
-# ═══════════════════════════════════════════════
-#  HELPERS — IMDB
-# ═══════════════════════════════════════════════
 def extract_imdb_id(raw: str):
     m = re.search(r"(tt\d{5,})", raw, re.I)
     if m: return m.group(1)
@@ -29,7 +21,6 @@ def extract_imdb_id(raw: str):
 
 
 def get_movie_info(imdb_id: str) -> dict:
-    # Cek cache dulu
     cached = imdb_cache.get(f"info:{imdb_id}")
     if cached:
         return cached
@@ -59,7 +50,6 @@ def get_movie_info(imdb_id: str) -> dict:
                         "genre":       d.get("Genre", ""),
                         "runtime":     d.get("Runtime", ""),
                     })
-                    # Simpan ke cache (1 jam)
                     imdb_cache.set(f"info:{imdb_id}", info)
                     return info
         except Exception:
@@ -68,7 +58,6 @@ def get_movie_info(imdb_id: str) -> dict:
 
 
 def get_fast_stream(imdb_id: str, media_type: str = "movie"):
-    # Cek cache
     cache_key = f"stream:{imdb_id}:{media_type}"
     cached = imdb_cache.get(cache_key)
     if cached:
@@ -76,22 +65,25 @@ def get_fast_stream(imdb_id: str, media_type: str = "movie"):
 
     api_url = f"https://streamdata.vaplayer.ru/api.php?imdb={imdb_id}&type={media_type}"
     try:
-        r = requests.get(api_url, headers=VIDEO_SPOOF_HEADERS, timeout=5)
+        parsed_target = urlparse(api_url)
+        spoof = {
+            **VIDEO_SPOOF_HEADERS,
+            "Referer": f"{parsed_target.scheme}://{parsed_target.netloc}/",
+            "Origin":  f"{parsed_target.scheme}://{parsed_target.netloc}",
+        }
+        r = requests.get(api_url, headers=spoof, timeout=8)
         if r.status_code == 200:
             data = r.json()
             streams = data.get("data", {}).get("stream_urls", [])
             if streams:
                 url = streams[0].replace("\\/", "/")
-                imdb_cache.set(cache_key, url, ttl=1800)  # cache 30 menit
+                imdb_cache.set(cache_key, url, ttl=1800)
                 return url
     except Exception:
         pass
     return None
 
 
-# ═══════════════════════════════════════════════
-#  HTTP HANDLER
-# ═══════════════════════════════════════════════
 class handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
@@ -99,113 +91,112 @@ class handler(BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
 
-def do_GET(self):
-    try:
-        parsed = urlparse(self.path)
-        path   = parsed.path
-        params = parse_qs(parsed.query)
+    def do_GET(self):
+        try:
+            parsed = urlparse(self.path)
+            path   = parsed.path
+            params = parse_qs(parsed.query)
 
-        # ── imdb-proxy HARUS duluan ──
-        if "/api/imdb-proxy" in path:
-            endpoint = (params.get("endpoint", [None])[0] or "").strip()
-            if not endpoint or not endpoint.startswith("/"):
-                return self.send_json({"error": "endpoint tidak valid"}, 400)
-            try:
-                target = f"https://imdb.iamidiotareyoutoo.com{endpoint}"
-                r = requests.get(target, headers=HEADERS, timeout=8)
-                body = r.content
-                self.send_response(r.status_code)
-                self._cors()
-                self.send_header("Content-Type", r.headers.get("Content-Type", "application/json"))
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            except Exception as e:
-                self.send_json({"error": str(e)}, 500)
-            return
+            # ── imdb-proxy HARUS duluan sebelum /api/imdb ──
+            if "/api/imdb-proxy" in path:
+                endpoint = (params.get("endpoint", [None])[0] or "").strip()
+                if not endpoint or not endpoint.startswith("/"):
+                    return self.send_json({"error": "endpoint tidak valid"}, 400)
+                try:
+                    target = f"https://imdb.iamidiotareyoutoo.com{endpoint}"
+                    r = requests.get(target, headers=HEADERS, timeout=8)
+                    body = r.content
+                    self.send_response(r.status_code)
+                    self._cors()
+                    self.send_header("Content-Type", r.headers.get("Content-Type", "application/json"))
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                except Exception as e:
+                    self.send_json({"error": str(e)}, 500)
+                return
 
-        # ── Proxy video / m3u8 ──
-        if "/api/proxy" in path:
-            target_url = params.get("url", [None])[0]
-            if not target_url:
-                return self.send_error(400)
-            try:
-                parsed_target = urlparse(target_url)
-                spoof = {
-                    **VIDEO_SPOOF_HEADERS,
-                    "Referer": f"{parsed_target.scheme}://{parsed_target.netloc}/",
-                    "Origin":  f"{parsed_target.scheme}://{parsed_target.netloc}",
-                }
-                resp = requests.get(
-                    target_url,
-                    headers=spoof,
-                    stream=True,
-                    timeout=15,
-                )
-                self.send_response(resp.status_code)
-                self._cors()
-                ct = resp.headers.get("Content-Type", "application/octet-stream")
-                self.send_header("Content-Type", ct)
-                self.end_headers()
-
-                if "mpegurl" in ct.lower() or target_url.endswith(".m3u8"):
-                    content = resp.text
-                    def rewrite(m):
-                        abs_link = urljoin(target_url, m.group(1))
-                        return f"/api/proxy?url={quote(abs_link)}"
-                    new_content = re.sub(
-                        r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE
+            # ── Proxy video / m3u8 ──
+            if "/api/proxy" in path:
+                target_url = params.get("url", [None])[0]
+                if not target_url:
+                    return self.send_error(400)
+                try:
+                    parsed_target = urlparse(target_url)
+                    spoof = {
+                        **VIDEO_SPOOF_HEADERS,
+                        "Referer": f"{parsed_target.scheme}://{parsed_target.netloc}/",
+                        "Origin":  f"{parsed_target.scheme}://{parsed_target.netloc}",
+                    }
+                    resp = requests.get(
+                        target_url,
+                        headers=spoof,
+                        stream=True,
+                        timeout=15,
                     )
-                    self.wfile.write(new_content.encode())
-                else:
-                    for chunk in resp.iter_content(chunk_size=65536):
-                        self.wfile.write(chunk)
-            except Exception:
-                self.send_error(500)
-            return
+                    self.send_response(resp.status_code)
+                    self._cors()
+                    ct = resp.headers.get("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Type", ct)
+                    self.end_headers()
 
-        # ── IMDB info + stream ──
-        if "/api/imdb" in path:
-            raw_id = (params.get("id",     [None])[0] or "").strip()
-            action = (params.get("action", ["info"])[0] or "info").strip()
+                    if "mpegurl" in ct.lower() or target_url.endswith(".m3u8"):
+                        content = resp.text
+                        def rewrite(m):
+                            abs_link = urljoin(target_url, m.group(1))
+                            return f"/api/proxy?url={quote(abs_link)}"
+                        new_content = re.sub(
+                            r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE
+                        )
+                        self.wfile.write(new_content.encode())
+                    else:
+                        for chunk in resp.iter_content(chunk_size=65536):
+                            self.wfile.write(chunk)
+                except Exception:
+                    self.send_error(500)
+                return
 
-            imdb_id = extract_imdb_id(raw_id)
-            if not imdb_id:
-                return self.send_json({"error": "ID tidak valid"}, 400)
+            # ── IMDB info + stream ──
+            if "/api/imdb" in path:
+                raw_id = (params.get("id",     [None])[0] or "").strip()
+                action = (params.get("action", ["info"])[0] or "info").strip()
 
-            info = get_movie_info(imdb_id)
+                imdb_id = extract_imdb_id(raw_id)
+                if not imdb_id:
+                    return self.send_json({"error": "ID tidak valid"}, 400)
 
-            if action == "stream":
-                m_type  = "tv" if info.get("type") == "series" else "movie"
-                raw_url = get_fast_stream(imdb_id, m_type)
-                if raw_url:
-                    host = self.headers.get("Host", "")
-                    protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
-                    info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
-                info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
+                info = get_movie_info(imdb_id)
 
-            return self.send_json({"status": "success", **info})
+                if action == "stream":
+                    m_type  = "tv" if info.get("type") == "series" else "movie"
+                    raw_url = get_fast_stream(imdb_id, m_type)
+                    if raw_url:
+                        host = self.headers.get("Host", "")
+                        protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
+                        info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
+                    info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
-        # ── Vidgf extractor ──
-        if "/api/get-video" in path:
-            video_id = (params.get("id", [None])[0] or "").strip()
-            if not video_id:
-                return self.send_json({"status": "error", "message": "ID kosong"}, 400)
-            if "/" in video_id:
-                video_id = video_id.strip("/").split("/")[-1].split("?")[0]
+                return self.send_json({"status": "success", **info})
 
-            url = vidgf.extract(video_id)
-            if url:
-                return self.send_json({"status": "success", "link": url, "id": video_id})
-            return self.send_json({"status": "error", "message": "Link tidak ditemukan"}, 404)
+            # ── Vidgf extractor ──
+            if "/api/get-video" in path:
+                video_id = (params.get("id", [None])[0] or "").strip()
+                if not video_id:
+                    return self.send_json({"status": "error", "message": "ID kosong"}, 400)
+                if "/" in video_id:
+                    video_id = video_id.strip("/").split("/")[-1].split("?")[0]
 
-        self.send_json({"error": "Route tidak ditemukan"}, 404)
+                url = vidgf.extract(video_id)
+                if url:
+                    return self.send_json({"status": "success", "link": url, "id": video_id})
+                return self.send_json({"status": "error", "message": "Link tidak ditemukan"}, 404)
 
-    except Exception as e:
-        tb = traceback.format_exc()
-        self.send_json({"error": str(e), "traceback": tb}, 500)
+            self.send_json({"error": "Route tidak ditemukan"}, 404)
 
-    # ── Utilities ──
+        except Exception as e:
+            tb = traceback.format_exc()
+            self.send_json({"error": str(e), "traceback": tb}, 500)
+
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin",  "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
