@@ -190,8 +190,6 @@ def imdb_api():
 
 @app.route("/api/proxy")
 def proxy():
-    import requests as req
-
     target_url = request.args.get("url", "").strip()
     if not target_url:
         return "Missing url param", 400
@@ -200,24 +198,21 @@ def proxy():
 
     # Full browser-mimicking headers
     spoof_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
         "Origin": "https://brightpathsignals.com",
         "Referer": "https://brightpathsignals.com/",
-        "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"Windows"',
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "cross-site",
-        "Connection": "keep-alive",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
     try:
-        session = req.Session()
-        resp = session.get(target_url, headers=spoof_headers, stream=True, timeout=20)
+        # Use curl_cffi to impersonate Chrome's TLS fingerprint
+        from curl_cffi import requests as cffi_req
+        resp = cffi_req.get(
+            target_url,
+            headers=spoof_headers,
+            impersonate="chrome",
+            timeout=20,
+        )
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
 
         print(f"[PROXY] Upstream status={resp.status_code} ct={content_type} len={resp.headers.get('Content-Length','?')}", flush=True)
@@ -254,12 +249,9 @@ def proxy():
                 },
             )
 
-        def generate():
-            for chunk in resp.iter_content(chunk_size=65536):
-                yield chunk
-
+        # For non-m3u8 content (video segments, etc.)
         return Response(
-            generate(),
+            resp.content,
             status=resp.status_code,
             headers={
                 "Content-Type":                content_type,

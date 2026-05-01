@@ -3,3 +3,4 @@ flask-cors
 requests
 yt-dlp
 beautifulsoup4
+curl_cffi
