@@ -196,15 +196,30 @@ def proxy():
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
 
         if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
-            content = resp.text
+            raw_bytes = resp.content
+            content = raw_bytes.decode("utf-8", errors="replace")
+
+            from urllib.parse import urlparse
+            parsed = urlparse(target_url)
+            base_origin = f"{parsed.scheme}://{parsed.netloc}"
 
             def rewrite(m):
-                abs_link = urljoin(target_url, m.group(1))
-                return f"/api/proxy?url={quote(abs_link)}"
+                line = m.group(1).strip()
+                if line.startswith("http://") or line.startswith("https://"):
+                    abs_link = line
+                elif line.startswith("/"):
+                    abs_link = base_origin + line
+                else:
+                    abs_link = urljoin(target_url, line)
+                return f"/api/proxy?url={quote(abs_link, safe='')}"
 
-            new_content = re.sub(r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE)
+            # Only match non-comment lines that look like valid paths
+            new_content = re.sub(
+                r"^(?!#)([\w/\-._~:?#\[\]@!$&'()*+,;=%]+)$",
+                rewrite, content, flags=re.MULTILINE
+            )
             return Response(
-                new_content.encode(),
+                new_content.encode("utf-8"),
                 status=resp.status_code,
                 headers={
                     "Content-Type":                content_type,
