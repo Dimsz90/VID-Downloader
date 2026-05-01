@@ -179,9 +179,7 @@ def do_GET(self):
                 m_type  = "tv" if info.get("type") == "series" else "movie"
                 raw_url = get_fast_stream(imdb_id, m_type)
                 if raw_url:
-                    host = self.headers.get("Host", "")
-                    protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
-                    info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
+                    info["stream_url"] = raw_url
                 info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
             return self.send_json({"status": "success", **info})
