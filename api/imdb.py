@@ -131,11 +131,10 @@ def do_GET(self):
             if not target_url:
                 return self.send_error(400)
             try:
-                parsed_target = urlparse(target_url)
                 spoof = {
-                    **VIDEO_SPOOF_HEADERS,
-                    "Referer": f"{parsed_target.scheme}://{parsed_target.netloc}/",
-                    "Origin":  f"{parsed_target.scheme}://{parsed_target.netloc}",
+                    "Origin": "https://brightpathsignals.com",
+                    "Referer": "https://brightpathsignals.com/",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
                 }
                 resp = requests.get(
                     target_url,

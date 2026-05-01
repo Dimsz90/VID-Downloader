@@ -191,24 +191,18 @@ def imdb_api():
 @app.route("/api/proxy")
 def proxy():
     import requests as req
-    try:
-        from api.lib.config import VIDEO_SPOOF_HEADERS
-    except ImportError:
-        try:
-            from lib.config import VIDEO_SPOOF_HEADERS
-        except ImportError:
-            VIDEO_SPOOF_HEADERS = {
-                "Origin": "https://brightpathsignals.com",
-                "Referer": "https://brightpathsignals.com/",
-                "User-Agent": "Mozilla/5.0"
-            }
+    spoof_headers = {
+        "Origin": "https://brightpathsignals.com",
+        "Referer": "https://brightpathsignals.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+    }
 
     target_url = request.args.get("url", "").strip()
     if not target_url:
         return "Missing url param", 400
 
     try:
-        resp = req.get(target_url, headers=VIDEO_SPOOF_HEADERS, stream=True, timeout=15)
+        resp = req.get(target_url, headers=spoof_headers, stream=True, timeout=15)
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
 
         if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
