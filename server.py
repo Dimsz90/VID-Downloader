@@ -191,19 +191,36 @@ def imdb_api():
 @app.route("/api/proxy")
 def proxy():
     import requests as req
-    spoof_headers = {
-        "Origin": "https://brightpathsignals.com",
-        "Referer": "https://brightpathsignals.com/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
-    }
 
     target_url = request.args.get("url", "").strip()
     if not target_url:
         return "Missing url param", 400
 
+    print(f"[PROXY] Fetching: {target_url[:120]}...", flush=True)
+
+    # Full browser-mimicking headers
+    spoof_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Origin": "https://brightpathsignals.com",
+        "Referer": "https://brightpathsignals.com/",
+        "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+        "Connection": "keep-alive",
+    }
+
     try:
-        resp = req.get(target_url, headers=spoof_headers, stream=True, timeout=15)
+        session = req.Session()
+        resp = session.get(target_url, headers=spoof_headers, stream=True, timeout=20)
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
+
+        print(f"[PROXY] Upstream status={resp.status_code} ct={content_type} len={resp.headers.get('Content-Length','?')}", flush=True)
 
         if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
             content = resp.text
