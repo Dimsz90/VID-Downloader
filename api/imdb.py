@@ -131,10 +131,11 @@ def do_GET(self):
             if not target_url:
                 return self.send_error(400)
             try:
+                parsed_target = urlparse(target_url)
                 spoof = {
-                    "Origin": "https://brightpathsignals.com",
-                    "Referer": "https://brightpathsignals.com/",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+                    **VIDEO_SPOOF_HEADERS,
+                    "Referer": f"{parsed_target.scheme}://{parsed_target.netloc}/",
+                    "Origin":  f"{parsed_target.scheme}://{parsed_target.netloc}",
                 }
                 resp = requests.get(
                     target_url,
@@ -179,7 +180,9 @@ def do_GET(self):
                 m_type  = "tv" if info.get("type") == "series" else "movie"
                 raw_url = get_fast_stream(imdb_id, m_type)
                 if raw_url:
-                    info["stream_url"] = raw_url
+                    host = self.headers.get("Host", "")
+                    protocol = "http" if "localhost" in host or "127.0.0.1" in host else "https"
+                    info["stream_url"] = f"{protocol}://{host}/api/proxy?url={quote(raw_url)}"
                 info["embed_url"] = f"https://streamimdb.ru/embed/movie/{imdb_id}"
 
             return self.send_json({"status": "success", **info})

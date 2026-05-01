@@ -190,58 +190,30 @@ def imdb_api():
 
 @app.route("/api/proxy")
 def proxy():
+    import requests as req
+    try:
+        from lib.config import VIDEO_SPOOF_HEADERS
+    except ImportError:
+        VIDEO_SPOOF_HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://imdb.com/"}
+
     target_url = request.args.get("url", "").strip()
     if not target_url:
         return "Missing url param", 400
 
-    print(f"[PROXY] Fetching: {target_url[:120]}...", flush=True)
-
-    # Full browser-mimicking headers
-    spoof_headers = {
-        "Origin": "https://brightpathsignals.com",
-        "Referer": "https://brightpathsignals.com/",
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-
     try:
-        # Use curl_cffi to impersonate Chrome's TLS fingerprint
-        from curl_cffi import requests as cffi_req
-        resp = cffi_req.get(
-            target_url,
-            headers=spoof_headers,
-            impersonate="chrome",
-            timeout=20,
-        )
+        resp = req.get(target_url, headers=VIDEO_SPOOF_HEADERS, stream=True, timeout=15)
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
 
-        print(f"[PROXY] Upstream status={resp.status_code} ct={content_type} len={resp.headers.get('Content-Length','?')}", flush=True)
-
         if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
-            raw_bytes = resp.content
-            content = raw_bytes.decode("utf-8", errors="replace")
-
-            from urllib.parse import urlparse
-            parsed = urlparse(target_url)
-            base_origin = f"{parsed.scheme}://{parsed.netloc}"
+            content = resp.text
 
             def rewrite(m):
-                line = m.group(1).strip()
-                if line.startswith("http://") or line.startswith("https://"):
-                    abs_link = line
-                elif line.startswith("/"):
-                    abs_link = base_origin + line
-                else:
-                    abs_link = urljoin(target_url, line)
-                return f"/api/proxy?url={quote(abs_link, safe='')}"
+                abs_link = urljoin(target_url, m.group(1))
+                return f"/api/proxy?url={quote(abs_link)}"
 
-            # Only match non-comment lines that look like valid paths
-            new_content = re.sub(
-                r"^(?!#)([\w/\-._~:?#\[\]@!$&'()*+,;=%]+)$",
-                rewrite, content, flags=re.MULTILINE
-            )
+            new_content = re.sub(r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE)
             return Response(
-                new_content.encode("utf-8"),
+                new_content.encode(),
                 status=resp.status_code,
                 headers={
                     "Content-Type":                content_type,
@@ -249,9 +221,12 @@ def proxy():
                 },
             )
 
-        # For non-m3u8 content (video segments, etc.)
+        def generate():
+            for chunk in resp.iter_content(chunk_size=65536):
+                yield chunk
+
         return Response(
-            resp.content,
+            generate(),
             status=resp.status_code,
             headers={
                 "Content-Type":                content_type,

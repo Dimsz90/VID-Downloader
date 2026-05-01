@@ -1,4 +1,4 @@
-const CACHE_NAME = "masdifox-v2.3";
+const CACHE_NAME = "StreamVault-v1.0";
 
 const PRECACHE = [
   "/",

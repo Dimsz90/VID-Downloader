@@ -180,46 +180,26 @@ def imdb():
 def proxy():
     from urllib.parse import urljoin
     import requests as req
-    
-    spoof_headers = {
-        "Origin": "https://brightpathsignals.com",
-        "Referer": "https://brightpathsignals.com/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
-    }
+    from lib.config import VIDEO_SPOOF_HEADERS
 
     target_url = request.args.get("url", "").strip()
     if not target_url:
         return "Missing url param", 400
 
     try:
-        resp = req.get(target_url, headers=spoof_headers, stream=True, timeout=15)
+        resp = req.get(target_url, headers=VIDEO_SPOOF_HEADERS, stream=True, timeout=15)
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
 
         if "mpegurl" in content_type.lower() or target_url.endswith(".m3u8"):
-            raw_bytes = resp.content
-            content = raw_bytes.decode("utf-8", errors="replace")
-
-            from urllib.parse import urlparse
-            parsed = urlparse(target_url)
-            base_origin = f"{parsed.scheme}://{parsed.netloc}"
+            content = resp.text
 
             def rewrite(m):
-                line = m.group(1).strip()
-                if line.startswith("http://") or line.startswith("https://"):
-                    abs_link = line
-                elif line.startswith("/"):
-                    abs_link = base_origin + line
-                else:
-                    abs_link = urljoin(target_url, line)
-                return f"/api/proxy?url={quote(abs_link, safe='')}"
+                abs_link = urljoin(target_url, m.group(1))
+                return f"/api/proxy?url={quote(abs_link)}"
 
-            # Only match non-comment lines that look like valid paths
-            new_content = re.sub(
-                r"^(?!#)([\w/\-._~:?#\[\]@!$&'()*+,;=%]+)$",
-                rewrite, content, flags=re.MULTILINE
-            )
+            new_content = re.sub(r"^(?!#)(.+)$", rewrite, content, flags=re.MULTILINE)
             return Response(
-                new_content.encode("utf-8"),
+                new_content.encode(),
                 status=resp.status_code,
                 headers={
                     "Content-Type":                content_type,
