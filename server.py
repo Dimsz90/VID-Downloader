@@ -192,9 +192,16 @@ def imdb_api():
 def proxy():
     import requests as req
     try:
-        from lib.config import VIDEO_SPOOF_HEADERS
+        from api.lib.config import VIDEO_SPOOF_HEADERS
     except ImportError:
-        VIDEO_SPOOF_HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://imdb.com/"}
+        try:
+            from lib.config import VIDEO_SPOOF_HEADERS
+        except ImportError:
+            VIDEO_SPOOF_HEADERS = {
+                "Origin": "https://brightpathsignals.com",
+                "Referer": "https://brightpathsignals.com/",
+                "User-Agent": "Mozilla/5.0"
+            }
 
     target_url = request.args.get("url", "").strip()
     if not target_url:

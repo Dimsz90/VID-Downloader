@@ -180,7 +180,17 @@ def imdb():
 def proxy():
     from urllib.parse import urljoin
     import requests as req
-    from lib.config import VIDEO_SPOOF_HEADERS
+    try:
+        from api.lib.config import VIDEO_SPOOF_HEADERS
+    except ImportError:
+        try:
+            from lib.config import VIDEO_SPOOF_HEADERS
+        except ImportError:
+            VIDEO_SPOOF_HEADERS = {
+                "Origin": "https://brightpathsignals.com",
+                "Referer": "https://brightpathsignals.com/",
+                "User-Agent": "Mozilla/5.0"
+            }
 
     target_url = request.args.get("url", "").strip()
     if not target_url:
